@@ -1,0 +1,22 @@
+** Drc report for 2FA Key.kicad_pcb **
+** Created on 2026-07-25T22:11:01 **
+** Report includes: Errors **
+
+** Found 1 DRC violations **
+[starved_thermal]: Thermal relief connection to zone incomplete (layer F.Cu; zone min spoke count 2; actual 1)
+    Local override; error
+    @(2348.43 mils, 4593.19 mils): Zone [GND] on F.Cu, priority 0
+    @(2640.26 mils, 4370.08 mils): Pad 1 [GND] of D1 on F.Cu
+
+** Found 0 unconnected pads **
+
+** Found 0 Footprint errors **
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
+
+** End of Report **
