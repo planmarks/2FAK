@@ -131,25 +131,6 @@ Both firmwares flash over SWD through the Tag-Connect pad (J2):
 Warning: RDP Level 2 turns off SWD and the bootloader for good. Only set it once a
 product firmware is final. Keep RDP 0 while you develop.
 
-## Repo layout
-
-```
-2FA Key/
-├── 2FA Key.kicad_pro / .kicad_sch / .kicad_pcb   hardware (KiCad 10)
-├── 2FA Key.net                                    netlist
-├── 2FAK - ... - Product description.md            security key doc
-├── EVIL 2FAK - ... - Product description.md         dev board doc
-├── firmware/                                       Firmware A: FIDO2/U2F key
-│   ├── BOARD_2FAKEY.md                             build and flash guide
-│   ├── build.sh                                    one-command build
-│   └── prebuilt/                                   all.hex and friends
-├── EVIL 2FAK/                                      Firmware B: USB HID card
-│   ├── main.c, usbd_kbd.c, usbd_desc.c, usbd_conf.c
-│   ├── build.sh, linker.ld, Makefile, README.md
-│   └── prebuilt/2fak_card.hex
-└── README.md                                       this file
-```
-
 ## Security notes
 
 - Private keys stay in the MCU flash and are never read out. The 2FAK firmware can be
@@ -158,13 +139,6 @@ product firmware is final. Keep RDP 0 while you develop.
   stock firmware uses internal flash and RDP instead.
 - EVIL 2FAK ships unlocked on purpose. Treat it as a dev board, not a hardened product.
 
-## License
-
-Not set yet. For open hardware and firmware, CERN-OHL-P fits the hardware, and the
-firmware keeps its upstream Apache-2.0 / MIT terms. Add `LICENSE` files before you
-publish.
-
 ## Links
 - [STM32L442KC datasheet](https://www.st.com/en/microcontrollers-microprocessors/stm32l442kc.html)
 - [SoloKeys Solo 1](https://github.com/solokeys/solo1), [Nitrokey FIDO2 firmware](https://github.com/Nitrokey/nitrokey-fido2-firmware)
-- [Tag-Connect cables for ST-Link](https://www.tag-connect.com/debugger-cable-selection-installation-instructions/stlink-v3)
