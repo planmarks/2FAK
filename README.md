@@ -154,25 +154,6 @@ development.
 
 ---
 
-## Repository layout
-
-```
-2FA Key/
-├── 2FA Key.kicad_pro / .kicad_sch / .kicad_pcb   # hardware (KiCad 10)
-├── 2FA Key.net                                    # netlist
-├── 2FAK - ... - Product description.md            # consumer product doc
-├── EVIL 2FAK - ... - Product description.md        # dev-board product doc
-├── firmware/                                       # Firmware A: FIDO2/U2F security key
-│   ├── BOARD_2FAKEY.md                             #   board port + build/flash guide
-│   ├── build.sh                                    #   one-command build (Windows/Git Bash)
-│   └── prebuilt/                                   #   all.hex, solo.hex, bootloader.hex, ...
-├── EVIL 2FAK/                                      # Firmware B: USB HID business card
-│   ├── main.c, usbd_kbd.c, usbd_desc.c, usbd_conf.c
-│   ├── build.sh, linker.ld, Makefile, README.md
-│   └── prebuilt/                                   #   2fak_card.hex
-└── README.md                                       # this file
-```
-
 ## Security notes
 
 - Private keys live in the MCU's protected flash and are never exported; the 2FAK
@@ -182,15 +163,8 @@ development.
 - EVIL 2FAK ships unlocked by design — treat it as a development board, not a hardened
   product.
 
-## License
-
-No license is set yet. For open hardware + firmware, consider **CERN‑OHL‑P** (hardware)
-and the upstream firmware's **Apache‑2.0 / MIT** terms (firmware). Add `LICENSE` files
-before publishing.
-
 ---
 
 ## References
 - [STM32L442KC datasheet](https://www.st.com/en/microcontrollers-microprocessors/stm32l442kc.html)
 - [SoloKeys Solo 1](https://github.com/solokeys/solo1) · [Nitrokey FIDO2 firmware](https://github.com/Nitrokey/nitrokey-fido2-firmware)
-- [Tag‑Connect cable selection (ST‑Link)](https://www.tag-connect.com/debugger-cable-selection-installation-instructions/stlink-v3)
