@@ -1,0 +1,98 @@
+{
+  "legalHeader": "Submission of this statement and retrieval and use of this statement indicates acceptance of the appropriate agreement located at https://fidoalliance.org/metadata/metadata-legal-terms/.",
+  "aaguid": "c2aa81f8-352d-56e2-c689-2bfdb5a52ccc",
+  "description": "muru.global 2FAK Security Key",
+  "authenticatorVersion": 327680,
+  "protocolFamily": "fido2",
+  "schema": 3,
+  "upv": [
+    {
+      "major": 1,
+      "minor": 0
+    },
+    {
+      "major": 1,
+      "minor": 1
+    },
+    {
+      "major": 1,
+      "minor": 3
+    }
+  ],
+  "authenticationAlgorithms": [
+    "secp256r1_ecdsa_sha256_raw"
+  ],
+  "publicKeyAlgAndEncodings": [
+    "cose"
+  ],
+  "attestationTypes": [
+    "basic_full"
+  ],
+  "userVerificationDetails": [
+    [
+      {
+        "userVerificationMethod": "presence_internal"
+      }
+    ],
+    [
+      {
+        "userVerificationMethod": "passcode_external"
+      }
+    ]
+  ],
+  "keyProtection": [
+    "hardware"
+  ],
+  "matcherProtection": [
+    "on_chip"
+  ],
+  "cryptoStrength": 128,
+  "attachmentHint": [
+    "external",
+    "wired"
+  ],
+  "tcDisplay": [],
+  "attestationRootCertificates": [
+    "MIIB7DCCAZOgAwIBAgIUbqdjajAuLKFQSI5WGy4WK604RG0wCgYIKoZIzj0EAwIwUjELMAkGA1UEBhMCU0kxFDASBgNVBAoMC211cnUuZ2xvYmFsMS0wKwYDVQQDDCRtdXJ1Lmdsb2JhbCAyRkFLIEF0dGVzdGF0aW9uIFJvb3QgQ0EwIBcNMjYwOTI0MTM0NzIxWhgPMjA1MTA5MTgxMzQ3MjFaMFIxCzAJBgNVBAYTAlNJMRQwEgYDVQQKDAttdXJ1Lmdsb2JhbDEtMCsGA1UEAwwkbXVydS5nbG9iYWwgMkZBSyBBdHRlc3RhdGlvbiBSb290IENBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGKWGMYDEmwUBrFrPjlqvwq5xt9wXeKSYLcmlsE4TtU8B0Ce0faSGjvqOG/wp27nyrztwFYKni9wv0oULFJNVXaNFMEMwEgYDVR0TAQH/BAgwBgEB/wIBADAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYEFKtjFCBxzvWBSCILEP6/5kABKEpHMAoGCCqGSM49BAMCA0cAMEQCIELswxZYphh8c92I3clCr2vREhOBuCekO/t2Nqc/xwGUAiBn8N35D27Rzfo7HJRk6l7Ixg4OuELptYrzmAAU4kjeGw=="
+  ],
+  "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR42mOQ1vLCihiGlgQA7MsjwUqI4p0AAAAASUVORK5CYII=",
+  "authenticatorGetInfo": {
+    "versions": [
+      "FIDO_2_0",
+      "FIDO_2_1_PRE",
+      "FIDO_2_1",
+      "FIDO_2_3"
+    ],
+    "extensions": [
+      "credProtect",
+      "hmac-secret"
+    ],
+    "aaguid": "c2aa81f8352d56e2c6892bfdb5a52ccc",
+    "options": {
+      "rk": true,
+      "up": true,
+      "plat": false,
+      "credMgmt": true,
+      "clientPin": false,
+      "pinUvAuthToken": true
+    },
+    "maxMsgSize": 1200,
+    "pinUvAuthProtocols": [
+      1,
+      2
+    ],
+    "maxCredentialCountInList": 20,
+    "maxCredentialIdLength": 128,
+    "transports": [
+      "usb"
+    ],
+    "algorithms": [
+      {
+        "type": "public-key",
+        "alg": -7
+      }
+    ],
+    "minPINLength": 4,
+    "firmwareVersion": 327680
+  }
+}

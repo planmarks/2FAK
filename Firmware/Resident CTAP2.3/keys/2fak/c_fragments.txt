@@ -1,0 +1,6 @@
+/* AAGUID */
+static const uint8_t k_aaguid[16] = "x42xd2x5dx35x40xd4x9fx67x56x3bx4exedx68x3ax5ax1f";
+
+uint8_t muru_attestation_key[32] = "x70x87x6axdcxbdx54x9bx49x6exc0x4dx2dx57x72xfex7fx6bxc1x26xbbx28x85xf3xb3x51x10xe4x0cxa5xc0x70x50";
+
+const uint8_t muru_attestation_cert_der[] = "";

@@ -1,0 +1,32 @@
+#!/bin/bash -xe
+cp -rf /solo-base/ /solo/
+
+cd /solo/targets/stm32l432
+pwd
+
+out_dir="/builds"
+rm -rf ${out_dir}/*
+
+function build() {
+    part=${1}
+    output=${2}
+    release=${3}
+    pages=${4}
+    HWREV=${5:-3}
+    what="${part}"
+
+    rm -rf release/*
+    make ${what} RELEASE=${release} PAGES=${pages} HWREV=${HWREV}
+    mkdir -p ${out_dir}/${output}/
+    cp release/* ${out_dir}/${output}/
+}
+
+build debug-release-buildv debug-256 0 128
+build debug-release-buildv debug-128 0 64
+build debug-release-buildv debug-128-no-touchbutton-HWREV0 0 64 0
+build release-buildv release-256 1 128
+build release-buildv release-128 1 64
+
+arm-none-eabi-gcc --version | head -1
+find ${out_dir} -type f | xargs sha256sum | sort || true
+echo "done"

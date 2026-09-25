@@ -1,0 +1,43 @@
+{
+  "rawId": "dfa461a41eb66245b629d1131eae36cc91c3f3c629cdc2262cca9722802f3003a5e9e9a88899f0e3ab9b98f693e0738a37725a3ef8130f3696b24ddddb145024880d11010000",
+  "response": {
+    "attestationObject": {
+      "fmt": "none",
+      "attStmt": {},
+      "authData": {
+        "rpIdHash": "e9a88899f0e3ab9b98f693e0738a37725a3ef8130f3696b24ddddb145024880d",
+        "flags": {
+          "userPresent": true,
+          "reserved1": false,
+          "userVerified": true,
+          "backupEligibility": false,
+          "backupState": false,
+          "reserved2": false,
+          "attestedCredentialData": true,
+          "extensionDataIncluded": false
+        },
+        "signCount": 273,
+        "attestedCredentialData": {
+          "aaguid": "00000000-0000-0000-0000-000000000000",
+          "credentialId": "dfa461a41eb66245b629d1131eae36cc91c3f3c629cdc2262cca9722802f3003a5e9e9a88899f0e3ab9b98f693e0738a37725a3ef8130f3696b24ddddb145024880d11010000",
+          "credentialPublicKey": {
+            "kty": "EC",
+            "alg": "ECDSA_w_SHA256",
+            "crv": "P-256",
+            "x": "ms1F6M4MkHy5A/IcUlX1feR5vdOL1qCzMyRmBv0AEus=",
+            "y": "4vMIn1VD96fjn0tYXtpXGdknSZCYyX0mb28gM5wh0T8="
+          }
+        }
+      }
+    },
+    "clientDataJSON": {
+      "type": "webauthn.create",
+      "challenge": "H7hq_NEy3s2zc_GXxhZIXz4LU5i2a94g3ZZlNeqON4Y",
+      "origin": "https://www.webauthn.me",
+      "crossOrigin": false
+    }
+  },
+  "authenticatorAttachment": "cross-platform",
+  "id": "36RhpB62YkW2KdETHq42zJHD88YpzcImLMqXIoAvMAOl6emoiJnw46ubmPaT4HOKN3JaPvgTDzaWsk3d2xRQJIgNEQEAAA",
+  "type": "public-key"
+}

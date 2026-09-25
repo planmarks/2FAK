@@ -1,0 +1,47 @@
+include: 'https://raw.githubusercontent.com/Nitrokey/common-ci-jobs/master/common_jobs.yml'
+
+stages:
+  - pull-github
+  - build
+  - deploy
+
+variables:
+  REPO_NAME: nitrokey-fido2-firmware
+  MAIN_BRANCH: master
+
+build:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  tags:
+    - lxc
+  stage: build
+  script:
+    - make ci
+    - mv builds artifacts
+  after_script:
+    - wget $icon_server/checkmark/$CI_COMMIT_REF_NAME/$CI_COMMIT_SHA/$CI_JOB_NAME/$CI_JOB_STATUS/${CI_JOB_URL#*/*/*/}
+  artifacts:
+    paths:
+      - artifacts
+
+
+build-simulation:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  image: ubuntu:20.04
+  tags:
+    - lxc
+  stage: build
+  before_script:
+    - apt update -y
+    - apt install -y git make make python3
+    - git submodule update --init --recursive --recommend-shallow
+  script:
+    - make all
+  after_script:
+    - wget $icon_server/checkmark/$CI_COMMIT_REF_NAME/$CI_COMMIT_SHA/$CI_JOB_NAME/$CI_JOB_STATUS/${CI_JOB_URL#*/*/*/}
+

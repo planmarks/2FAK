@@ -1,0 +1,23 @@
+2FAK Security Key
+Copyright (c) muru.global
+
+This product includes software derived from open-source FIDO2 security-key
+firmware, licensed under the Apache License 2.0 or the MIT license:
+
+  * SoloKeys "solo1" firmware   - https://github.com/solokeys/solo1
+  * Nitrokey FIDO2 firmware     - https://github.com/Nitrokey/nitrokey-fido2-firmware
+
+The 2FAK firmware in this repository is dual-licensed under Apache-2.0 OR MIT
+(see LICENSE, LICENSE-APACHE, LICENSE-MIT).
+
+Bundled third-party components retain their own licenses. Refer to the source
+headers in each component for authoritative terms. Summary:
+
+  * tinycbor (Intel)                    - MIT
+  * micro-ecc (Kenneth MacKay)          - BSD-2-Clause
+  * tiny-AES-c (kokke)                  - The Unlicense (public domain)
+  * cifra (Joseph Birr-Pixton)          - CC0 (public domain)
+  * STM32 HAL / LL drivers, CMSIS (STMicroelectronics) - see component headers
+
+USB Vendor ID 0x1209 is administered by pid.codes for open-source projects.
+The 2FAK AAGUID (c2aa81f8-352d-56e2-c689-2bfdb5a52ccc) is self-assigned.

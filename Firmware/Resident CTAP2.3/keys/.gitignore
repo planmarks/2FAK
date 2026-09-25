@@ -1,0 +1,17 @@
+# Never commit attestation PRIVATE keys to the repo.
+# The certificates (leaf + root) and the AAGUID are public; the private keys are not.
+2fak/att_key.pem
+2fak/priv.bin
+2fak/priv.hex
+2fak/ca_key.pem
+
+# Re-include PUBLIC attestation artifacts that the broader *.pem/*.der/*.hex/*.bin
+# ignores would otherwise drop. These contain only public keys/identity and are safe
+# to publish; the PRIVATE keys above stay excluded.
+!2fak/ca_cert.pem
+!2fak/ca_cert.der
+!2fak/att_cert.pem
+!2fak/att_cert.der
+!2fak/aaguid.hex
+!2fak/aaguid.bin
+!2fak/root_b64.txt

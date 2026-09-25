@@ -1,0 +1,76 @@
+# ============================================================================
+# 2FAK monorepo .gitignore
+# This is a PUBLIC repository. Nothing secret may ever be committed.
+# The SECRETS section below is the single source of truth for what stays private.
+# After changes, verify with:  git status --short | grep -iE 'key|priv|secret|\.pem'
+# ============================================================================
+
+# ---- Build artifacts (regenerable) ----
+*.o
+*.d
+*.obj
+*.elf
+*.bin
+*.hex
+*.map
+*.exp
+*.ilk
+*.gch
+*.pch
+*.a
+*.la
+*.lo
+*.lib
+*.dll
+*.so
+*.so.*
+*.dylib
+*.out
+*.buildinfo
+**/release/
+**/prebuilt/*.hex
+**/prebuilt/*.bin
+**/prebuilt/*.elf
+# generated linker scripts (templates *.ld.in are kept)
+**/linker/*.ld
+!**/linker/*.ld.in
+
+# ---- OS / editor cruft ----
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+
+# ============================================================================
+# SECRETS - never publish. These stay on the build/flashing machines only.
+# Public CERTIFICATES (ca_cert.*, att_cert.*, root_b64.txt, aaguid.*) are NOT
+# ignored on purpose - they are meant to be public.
+# ============================================================================
+secrets/
+production-keys/
+
+# muru attestation PRIVATE keys
+**/keys/2fak/att_key.pem
+**/keys/2fak/ca_key.pem
+**/keys/2fak/priv.bin
+**/keys/2fak/priv.hex
+
+# any private key material, in any firmware's keys/ tree
+**/keys/**/*_key.pem
+**/keys/**/*_key.hex
+**/keys/**/*_key.txt
+**/keys/**/root_key.pem
+**/keys/bootloader-*.pem
+
+# generic private-key catch-alls
+*.key
+*_private.pem
+id_rsa*
+
+# NOTE: provisioned firmware images embed the attestation private key, so all
+# *.hex are ignored above and must be distributed via signed GitHub Releases,
+# never committed to the tree.

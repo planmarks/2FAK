@@ -1,0 +1,8 @@
+_VgRxNQ2itjY...tghB7wBAEAAA
+Description:
+device-bound non-discoverable credential
+Transports:
+["ble", "nfc", "usb"]
+Provider Information:
+Name: (Unavailable)
+AAGUID: 00000000-0000-0000-0000-000000000000

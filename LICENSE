@@ -1,0 +1,15 @@
+2FAK Security Key firmware and tooling
+
+Dual-licensed. You may use this software under the terms of EITHER of the
+following licenses, at your option:
+
+  * Apache License, Version 2.0  -  see LICENSE-APACHE
+  * MIT License                  -  see LICENSE-MIT
+
+Unless you explicitly state otherwise, any contribution intentionally
+submitted for inclusion in this project shall be dual-licensed as above,
+without any additional terms or conditions.
+
+This project is derived from open-source FIDO2 firmware. Third-party
+components retain their own licenses; see the NOTICE file for attribution
+and details.
