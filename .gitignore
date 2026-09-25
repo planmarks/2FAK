@@ -71,6 +71,11 @@ production-keys/
 *_private.pem
 id_rsa*
 
+# Flashing-station runtime output: production records (device IDs / MCU UIDs) and the
+# generated QR/barcode images. Keep these as your own records; do not publish them.
+Tools/flashing-station/logs/
+Tools/flashing-station/codes/
+
 # NOTE: provisioned firmware images embed the attestation private key, so all
 # *.hex are ignored above and must be distributed via signed GitHub Releases,
 # never committed to the tree.
