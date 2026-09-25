@@ -63,12 +63,23 @@ def _import_deps():
 
 
 def find_device(CtapHidDevice):
-    for d in CtapHidDevice.list_devices():
+    # NOTE: on Windows, FIDO HID devices are only visible to an ELEVATED (Administrator)
+    # process. If nothing is found, re-run from an Administrator terminal.
+    devs = list(CtapHidDevice.list_devices())
+    for d in devs:
+        vid = pid = None
         desc = getattr(d, "descriptor", None)
-        vid = getattr(desc, "vid", None)
-        pid = getattr(desc, "pid", None)
+        if desc is not None:
+            vid = getattr(desc, "vid", None)
+            pid = getattr(desc, "pid", None)
+            if vid is None and isinstance(desc, dict):   # older fido2 dict-style descriptor
+                vid = desc.get("vendor_id")
+                pid = desc.get("product_id")
         if (vid, pid) == (VID, PID):
             return d
+    # Fallback: exactly one FIDO device present (typical on a flashing bench) -> use it.
+    if len(devs) == 1:
+        return devs[0]
     return None
 
 
