@@ -49,6 +49,8 @@ OUR_BOOTLOADER_PUBKEY = ("27cb664c730462a2f3f71720aa203da3a88bc316e8432fc3bba03b
 CTAPHID_BOOT      = 0x50
 CTAPHID_ENTERBOOT = 0x51
 CTAPHID_REBOOT    = 0x53
+CTAPHID_GETVERSION = 0x61   # returns [major, minor, patch, locked]
+CTAPHID_LOCK       = 0x19   # firmware vendor cmd 0x99: set persistent lock flag (RDP-2 on next boot)
 
 # ---- Bootloader operations ----
 BootWrite, BootDone, BootCheck, BootErase = 0x40, 0x41, 0x42, 0x43
@@ -113,6 +115,17 @@ def in_bootloader(dev):
         return False  # app mode does not implement CTAPHID_BOOT
 
 
+def get_version(dev):
+    """In app mode: return (major, minor, patch, locked) or None."""
+    try:
+        r = dev.call(CTAPHID_GETVERSION, b"")
+        if len(r) >= 4:
+            return r[0], r[1], r[2], r[3]
+    except Exception:
+        pass
+    return None
+
+
 def app_image_and_hash(IntelHex, hexpath):
     """Return (bytes to write starting at APPLICATION_START_ADDR, sha256 over the app
     region [START, END) with unwritten bytes as 0xFF), matching what the bootloader hashes."""
@@ -169,7 +182,43 @@ def cmd_info(args):
         except Exception as e:
             print(f"  (could not read bootloader pubkey: {e})")
     else:
-        print("Device in APPLICATION mode (normal FIDO operation).")
+        v = get_version(dev)
+        if v:
+            print(f"Device in APPLICATION mode. Firmware {v[0]}.{v[1]}.{v[2]}. "
+                  f"RDP: {'LOCKED (RDP-2, SWD disabled)' if v[3] else 'unlocked (SWD open)'}")
+        else:
+            print("Device in APPLICATION mode (normal FIDO operation).")
+
+
+def cmd_lock(args):
+    CtapHidDevice, _ = _import_deps()
+    dev = find_device(CtapHidDevice)
+    if not dev:
+        sys.exit(f"No 2FAK found (VID/PID {VID:#06x}/{PID:#06x}).")
+    if in_bootloader(dev):
+        sys.exit("Device is in bootloader mode. Boot the application first (the app must be "
+                 "running to set the lock flag), then retry.")
+    v = get_version(dev)
+    if v and v[3] == 1:
+        print("Device is ALREADY locked (RDP-2). Nothing to do.")
+        return
+    print("=" * 72)
+    print(" IRREVERSIBLE ACTION - READ CAREFULLY")
+    print(" This sets readout protection level 2 (RDP-2) on the next boot.")
+    print("  * SWD / debug access is PERMANENTLY disabled on this chip.")
+    print("  * You can NEVER reflash or debug it over a programmer again.")
+    print("  * RDP-2 cannot be undone (no going back, no mass-erase recovery).")
+    print("  * The ONLY way to update it afterwards is a SIGNED USB update.")
+    print(" Use this only on a finished, tested unit with a working verifying bootloader.")
+    print("=" * 72)
+    if not args.yes:
+        if input('Type exactly  LOCK  to proceed: ').strip() != "LOCK":
+            sys.exit("Aborted - device NOT locked.")
+    dev.call(CTAPHID_LOCK, b"")
+    print("Lock flag set on the device.")
+    print("Now UNPLUG and RE-PLUG the device: on that boot the firmware programs RDP-2.")
+    print("Then run:  python 2fak_update.py info   -> it should report 'LOCKED (RDP-2)'.")
+    print("Confirm SWD is dead by trying to connect with STM32CubeProgrammer (must fail).")
 
 
 def cmd_sign(args):
@@ -257,6 +306,10 @@ def main():
     g.add_argument("--key", help="bootloader private key PEM (signs, for verifying units)")
     g.add_argument("--sig", help="pre-computed 64-byte signature file")
     pp.set_defaults(func=cmd_program)
+
+    pl = sub.add_parser("lock", help="IRREVERSIBLY set RDP-2 / disable SWD on next boot")
+    pl.add_argument("--yes", action="store_true", help="skip the interactive confirmation")
+    pl.set_defaults(func=cmd_lock)
 
     args = p.parse_args()
     args.func(args)
