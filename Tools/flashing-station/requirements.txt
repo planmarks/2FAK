@@ -1,7 +1,0 @@
-# 2FAK flashing station dependencies
-fido2            # USB CTAPHID / FIDO2 tests
-intelhex         # hex parsing (shared with the updater)
-cryptography     # (pulled in by the updater's signing; harmless here)
-qrcode           # QR code generation
-python-barcode   # Code128 barcode generation
-pillow           # image backend for qrcode/python-barcode
