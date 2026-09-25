@@ -68,25 +68,48 @@ def _import_deps():
         sys.exit(f"Missing dependency: {e}. Run: pip install fido2 intelhex cryptography")
 
 
+def _desc_vid_pid(desc):
+    vid = getattr(desc, "vid", None)
+    pid = getattr(desc, "pid", None)
+    if vid is None and isinstance(desc, dict):   # older fido2 dict-style descriptor
+        vid = desc.get("vendor_id")
+        pid = desc.get("product_id")
+    return vid, pid
+
+
 def find_device(CtapHidDevice):
     # NOTE: on Windows, FIDO HID devices are only visible to an ELEVATED (Administrator)
     # process. If nothing is found, re-run from an Administrator terminal.
-    devs = list(CtapHidDevice.list_devices())
-    for d in devs:
-        vid = pid = None
-        desc = getattr(d, "descriptor", None)
-        if desc is not None:
-            vid = getattr(desc, "vid", None)
-            pid = getattr(desc, "pid", None)
-            if vid is None and isinstance(desc, dict):   # older fido2 dict-style descriptor
-                vid = desc.get("vendor_id")
-                pid = desc.get("product_id")
-        if (vid, pid) == (VID, PID):
-            return d
-    # Fallback: exactly one FIDO device present (typical on a flashing bench) -> use it.
-    if len(devs) == 1:
-        return devs[0]
-    return None
+    #
+    # Open each HID device individually and skip any that fail, so a device that is
+    # mid-reboot (app<->bootloader) - which can raise "Wrong channel" during INIT - does
+    # not abort discovery of the others. Callers retry, so a transient miss is fine.
+    try:
+        from fido2.hid import list_descriptors, open_connection
+        descs = list(list_descriptors())
+    except Exception:
+        # Fall back to the simple API; tolerate it throwing (return no device this round).
+        try:
+            devs = list(CtapHidDevice.list_devices())
+        except Exception:
+            return None
+        for d in devs:
+            if _desc_vid_pid(getattr(d, "descriptor", None)) == (VID, PID):
+                return d
+        return devs[0] if len(devs) == 1 else None
+
+    only = None
+    count = 0
+    for desc in descs:
+        try:
+            dev = CtapHidDevice(desc, open_connection(desc))
+        except Exception:
+            continue  # busy / transitioning device; skip it
+        count += 1
+        only = dev
+        if _desc_vid_pid(desc) == (VID, PID):
+            return dev
+    return only if count == 1 else None
 
 
 def boot_req(op, addr=0, payload=b""):
