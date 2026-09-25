@@ -102,8 +102,9 @@ if [ "${VERIFY_BOOT:-0}" = "1" ]; then
   # RELEASE=1 makes the Makefile drop -DNK_TEST_MODE, so pubkey_bootloader.c selects the
   # PRODUCTION key branch (our muru key) instead of the Nitrokey test key. Without this the
   # verifying bootloader embeds the test key and rejects our signatures.
-  VARS="$VARS RELEASE=1"
-  echo ">> Bootloader: VERIFYING (production, signed USB updates only; RELEASE=1 -> our key)"
+  # Also drop -DSOLO_HACKER from the app: production images are not "hacker" builds.
+  VARS="$VARS RELEASE=1 SOLO_HACKER_DEFINE="
+  echo ">> Bootloader: VERIFYING (production; RELEASE=1 -> our key; SOLO_HACKER off)"
 else
   BOOT_TARGET="bootloader-nonverifying"
   IMG_TAG="dev"
