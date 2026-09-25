@@ -270,22 +270,28 @@ uint8_t ctap_get_info(CborEncoder * encoder)
         ret = cbor_encode_uint(&map, RESP_options);
         check_ret(ret);
         {
-            // Options: rk, up, plat, [alwaysUv], credMgmt, clientPin, pinUvAuthToken.
-            // Resident/discoverable credentials (passkeys) and credential management are
-            // supported in this build; keys are emitted in CTAP2 canonical order
-            // (length, then bytewise). alwaysUv is only present when the PIN policy forces
-            // UV on every operation.
-#if PIN_POLICY == PIN_POLICY_ALWAYS_UV
+            // Options: rk, up, plat, [alwaysUv], [credMgmt], clientPin, pinUvAuthToken.
+            // With RESIDENT_KEYS the device is a passkey authenticator (rk + credMgmt);
+            // without it, a non-resident second-factor (rk=false, no credMgmt). Keys are
+            // emitted in CTAP2 canonical order (length, then bytewise). alwaysUv is only
+            // present when the PIN policy forces UV on every operation.
+#if defined(RESIDENT_KEYS) && (PIN_POLICY == PIN_POLICY_ALWAYS_UV)
             ret = cbor_encoder_create_map(&map, &options,7);
-#else
+#elif defined(RESIDENT_KEYS) || (PIN_POLICY == PIN_POLICY_ALWAYS_UV)
             ret = cbor_encoder_create_map(&map, &options,6);
+#else
+            ret = cbor_encoder_create_map(&map, &options,5);
 #endif
             check_ret(ret);
             {
                 ret = cbor_encode_text_string(&options, "rk", 2);
                 check_ret(ret);
                 {
+#ifdef RESIDENT_KEYS
                     ret = cbor_encode_boolean(&options, 1);     // Supports discoverable credentials (passkeys)
+#else
+                    ret = cbor_encode_boolean(&options, 0);     // Non-resident: second-factor only
+#endif
                     check_ret(ret);
                 }
 
@@ -322,6 +328,7 @@ uint8_t ctap_get_info(CborEncoder * encoder)
                 }
 #endif
 
+#ifdef RESIDENT_KEYS
                 // credMgmt: supports authenticatorCredentialManagement (0x0A) for
                 // enumerating/deleting discoverable credentials. Canonical order places
                 // this 8-char key after "alwaysUv" and before "clientPin".
@@ -331,6 +338,7 @@ uint8_t ctap_get_info(CborEncoder * encoder)
                     ret = cbor_encode_boolean(&options, 1);
                     check_ret(ret);
                 }
+#endif
 
                 ret = cbor_encode_text_string(&options, "clientPin", 9);
                 check_ret(ret);
@@ -889,10 +897,14 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
         // Make a tag we can later check to make sure this is a token we made
         make_auth_tag(authData->head.rpIdHash, authData->attest.id.entropy.nonce, count, authData->attest.id.tag);
 
-        // resident key (discoverable credential / passkey): store it on-device so it can
-        // later be found by an empty-allowList getAssertion and managed via credMgmt.
+        // resident key (discoverable credential / passkey).
         if (credInfo->rk)
         {
+#ifndef RESIDENT_KEYS
+            // Non-resident (second-factor) build: discoverable credentials are not
+            // supported; tell the RP so it falls back to a non-resident credential.
+            return CTAP2_ERR_UNSUPPORTED_OPTION;
+#else
             memmove(&rk.id, &authData->attest.id, sizeof(CredentialId));
             memmove(&rk.user, &credInfo->user, sizeof(CTAP_userEntity));
 
@@ -924,8 +936,11 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
 
             printf2(TAG_ERR, "Out of memory for resident keys\r\n");
             return CTAP2_ERR_KEY_STORE_FULL;
+#endif
         }
-done_rk:
+#ifdef RESIDENT_KEYS
+done_rk:     // only a goto target in the resident (rk-storage) path
+#endif
 
         printf1(TAG_GREEN, "MADE credId: "); dump_hex1(TAG_GREEN, (uint8_t*) &authData->attest.id, sizeof(CredentialId));
 

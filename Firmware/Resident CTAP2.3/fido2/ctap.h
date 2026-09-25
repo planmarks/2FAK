@@ -78,8 +78,13 @@
 #define CTAP_PERM_BE             0x08   // bioEnrollment
 #define CTAP_PERM_LBW            0x10   // largeBlobWrite
 #define CTAP_PERM_ACFG           0x20   // authenticatorConfiguration
-// Passkey build grants makeCredential + getAssertion + credentialManagement.
+// Passkey (RESIDENT_KEYS) build also grants credentialManagement; the non-resident
+// second-factor build grants only makeCredential + getAssertion.
+#ifdef RESIDENT_KEYS
 #define CTAP_PERM_SUPPORTED      (CTAP_PERM_MC | CTAP_PERM_GA | CTAP_PERM_CM)
+#else
+#define CTAP_PERM_SUPPORTED      (CTAP_PERM_MC | CTAP_PERM_GA)
+#endif
 
 // PIN enforcement policy (build-time; pass -DPIN_POLICY=<n>, or use PIN_POLICY=... in
 // build.sh). Default is optional so the relying party decides via userVerification.

@@ -71,6 +71,16 @@ if [ "${FIDO23:-0}" = "1" ]; then
   echo ">> Advertising FIDO_2_3 (ensure conformance before shipping)"
 fi
 
+# Resident (passkey) features. RESIDENT=1 (default here) advertises rk + credMgmt and
+# stores discoverable credentials (the passkey SKU). RESIDENT=0 builds the non-resident
+# second-factor SKU (rk=false, no credMgmt, rk=true rejected).
+if [ "${RESIDENT:-1}" = "1" ]; then
+  VARS="$VARS RESIDENT_DEFINE=-DRESIDENT_KEYS"
+  echo ">> Resident/passkey features ENABLED (rk + credMgmt)"
+else
+  echo ">> Non-resident second-factor build (no rk / credMgmt)"
+fi
+
 # CONFORMANCE=1 relaxes test-hostile behaviours for the FIDO conformance tools:
 # authenticatorReset is allowed any time (not just within 10s of power-up), so the tool
 # can reset programmatically between test groups. NOT for production images.
