@@ -89,7 +89,11 @@ fi
 if [ "${VERIFY_BOOT:-0}" = "1" ]; then
   BOOT_TARGET="bootloader-verifying"
   IMG_TAG="verifying"
-  echo ">> Bootloader: VERIFYING (production, signed USB updates only)"
+  # RELEASE=1 makes the Makefile drop -DNK_TEST_MODE, so pubkey_bootloader.c selects the
+  # PRODUCTION key branch (our muru key) instead of the Nitrokey test key. Without this the
+  # verifying bootloader embeds the test key and rejects our signatures.
+  VARS="$VARS RELEASE=1"
+  echo ">> Bootloader: VERIFYING (production, signed USB updates only; RELEASE=1 -> our key)"
 else
   BOOT_TARGET="bootloader-nonverifying"
   IMG_TAG="dev"

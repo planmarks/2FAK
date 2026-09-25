@@ -41,6 +41,10 @@ FLASH_BASE = 0x08000000
 
 VID, PID = 0x1209, 0x2FA2
 
+# The muru production bootloader public key (must match pubkey_bootloader.c PAGES==128).
+OUR_BOOTLOADER_PUBKEY = ("27cb664c730462a2f3f71720aa203da3a88bc316e8432fc3bba03b689be870c9"
+                         "028a4a8e40dfa8a863c112d611956fe8ca0510d0ef7f273ae02f9f82853be67b")
+
 # ---- CTAPHID vendor commands (low 7 bits; the HID layer sets the 0x80 init bit) ----
 CTAPHID_BOOT      = 0x50
 CTAPHID_ENTERBOOT = 0x51
@@ -150,6 +154,20 @@ def cmd_info(args):
         status, wb = boot_call(dev, BootVersion)
         ver = ".".join(str(b) for b in wb[:3]) if len(wb) >= 3 else "?"
         print(f"Device in BOOTLOADER mode. Bootloader/app version: {ver}")
+        # Read the embedded verifying-bootloader public key and compare to ours.
+        try:
+            st, key = boot_call(dev, BootPubkey)
+            khex = key[:64].hex()
+            print(f"bootloader pubkey: {khex}")
+            if khex == OUR_BOOTLOADER_PUBKEY:
+                print("  -> MATCHES our production key: signed updates with bootloader-prod.pem will verify.")
+            elif all(b == 0 for b in key[:64]) or len(key) < 64:
+                print("  -> non-verifying (dev) bootloader or no key exposed; unsigned updates are accepted.")
+            else:
+                print("  -> does NOT match our key. This unit has a DIFFERENT bootloader.")
+                print("     Flash prebuilt/all-verifying.hex over SWD to install our key.")
+        except Exception as e:
+            print(f"  (could not read bootloader pubkey: {e})")
     else:
         print("Device in APPLICATION mode (normal FIDO operation).")
 
