@@ -79,9 +79,26 @@ if [ "${CONFORMANCE:-0}" = "1" ]; then
   echo ">> CONFORMANCE build (reset allowed any time) - do not ship"
 fi
 
+# Bootloader flavour:
+#   VERIFY_BOOT=0 (default): non-verifying (DEV) bootloader - accepts UNSIGNED firmware
+#     over USB. For development/testing only.
+#   VERIFY_BOOT=1: verifying (PRODUCTION) bootloader - accepts firmware over USB only if
+#     signed with the muru production key (secrets/bootloader/bootloader-prod.pem, public
+#     half embedded in bootloader/pubkey_bootloader.c). Required before the SWD/RDP-2
+#     lockdown so units remain updatable over USB after SWD is closed.
+if [ "${VERIFY_BOOT:-0}" = "1" ]; then
+  BOOT_TARGET="bootloader-verifying"
+  IMG_TAG="verifying"
+  echo ">> Bootloader: VERIFYING (production, signed USB updates only)"
+else
+  BOOT_TARGET="bootloader-nonverifying"
+  IMG_TAG="dev"
+  echo ">> Bootloader: non-verifying (dev, unsigned USB updates)"
+fi
+
 cd "$BUILD/targets/stm32l432"
 echo ">> make cbor";                  make cbor                  $VARS
-echo ">> make bootloader-nonverifying"; make bootloader-nonverifying $VARS
+echo ">> make $BOOT_TARGET";          make $BOOT_TARGET          $VARS
 # The bootloader build compiles the shared fido2/crypto/src objects WITH
 # -DIS_BOOTLOADER. Remove them so the app (all-hacker) recompiles them without it;
 # otherwise the app can link a bootloader-flavoured object (e.g. ctaphid.o -> the
@@ -94,15 +111,18 @@ rm -f *.o src/*.o bootloader/*.o \
       ../../crypto/tiny-AES-c/*.o ../../crypto/cifra/src/*.o 2>/dev/null || true
 echo ">> make all-hacker";            make all-hacker            $VARS
 
-# 5. Collect artifacts
+# 5. Collect artifacts (tagged dev/verifying so both flavours can coexist)
 mkdir -p "$OUT"
-cp solo.hex solo.bin solo.elf bootloader.hex bootloader.elf "$OUT/"
+cp solo.hex solo.bin solo.elf "$OUT/"
+cp bootloader.hex "$OUT/bootloader-$IMG_TAG.hex"
+cp bootloader.elf "$OUT/bootloader-$IMG_TAG.elf"
 
 # 6. Build the flashable merged image (app + bootloader + boot auth word +
-#    seeded hacker attestation key). Regenerate every build so all.hex is never
-#    stale relative to solo.hex/bootloader.hex.
-echo ">> make_all.py -> $OUT/all.hex"
-( cd "$REPO" && python make_all.py "$OUT/solo.hex" "$OUT/bootloader.hex" "$OUT/all.hex" )
+#    seeded hacker attestation key). Regenerate every build so it is never stale.
+#    all-dev.hex       = non-verifying bootloader (unsigned USB updates)
+#    all-verifying.hex = verifying bootloader (signed USB updates only)
+echo ">> make_all.py -> $OUT/all-$IMG_TAG.hex"
+( cd "$REPO" && python make_all.py "$OUT/solo.hex" "$OUT/bootloader-$IMG_TAG.hex" "$OUT/all-$IMG_TAG.hex" )
 
 echo
 echo ">> DONE. Artifacts in: $OUT"
