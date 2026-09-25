@@ -3,6 +3,13 @@
 Internal engineering reference for the second-factor (non-resident) product. This
 describes what the hardware and firmware actually do today, not a target specification.
 
+> This is one of two firmware variants built from a single codebase (see
+> `Firmware/Non-Resident CTAP2.0-2.1` and `Firmware/Resident CTAP2.3`). The passkey
+> (resident, CTAP2.3) variant is the same code built with `RESIDENT=1`; this document
+> covers the non-resident build (`RESIDENT=0`). Both share the signed USB update path
+> (`Docs/Firmware Update over USB.md`) and the RDP-2 production lockdown
+> (`Docs/Production Lock (RDP-2, SWD).md`).
+
 ## 1. Summary
 
 2FAK is a USB security key based on an STM32L442 microcontroller with a Microchip

@@ -3,9 +3,15 @@
 ## Short description
 
 2FAK is an open-source USB security key for two-factor authentication. It works with
-the FIDO2/WebAuthn and U2F sign-in used by many major online services. It is built
-around an STM32 microcontroller with a dedicated secure element, and it is designed as
-a hardware second factor that you add on top of your normal password.
+the FIDO2/WebAuthn sign-in used by many major online services. It is built around an
+STM32 microcontroller with a dedicated secure element, and it is designed as a hardware
+second factor that you add on top of your normal password.
+
+> **Two firmware editions.** This listing is the **Second-Factor Edition** (CTAP2.0/2.1,
+> non-resident). A **Passkey Edition** (CTAP2.3, on-key discoverable credentials for
+> passwordless sign-in) is also available on the same hardware. Both use signed USB
+> firmware updates and the same production security lockdown; a unit can be moved between
+> editions with a signed update.
 
 ## Long description
 
