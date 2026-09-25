@@ -76,6 +76,9 @@ id_rsa*
 Tools/flashing-station/logs/
 Tools/flashing-station/codes/
 
+# Documentation kept private (product/marketing/internal); not published to the repo.
+Docs/
+
 # NOTE: provisioned firmware images embed the attestation private key, so all
 # *.hex are ignored above and must be distributed via signed GitHub Releases,
 # never committed to the tree.
