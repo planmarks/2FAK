@@ -793,6 +793,12 @@ int ctap_user_presence_test_feedback(uint32_t up_delay, int8_t(*feedback_functio
     if (_up_disabled) return 2;
 
 #if SKIP_BUTTON_CHECK_WITH_DELAY
+    // Guarantee at least one CTAPHID_KEEPALIVE reaches the host before we can observe a
+    // CTAPHID_CANCEL. device_set_status(UPNEEDED) only emits an immediate keepalive when
+    // the status actually changed; if a fast CANCEL arrives inside the first ~90ms timer
+    // tick, we could otherwise return KEEPALIVE_CANCEL having sent none, which the HID
+    // keepalive/cancel test (HID-1 P-10) rejects ("Expected CTAPHID_KEEPALIVE").
+    ctaphid_update_status(CTAPHID_STATUS_UPNEEDED);
     int i=500;
     while(i--)
     {

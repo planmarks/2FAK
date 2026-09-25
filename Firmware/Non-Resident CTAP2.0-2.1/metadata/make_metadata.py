@@ -58,7 +58,8 @@ def main():
         "authenticatorVersion": FIRMWARE_VERSION,
         "protocolFamily": "fido2",
         "schema": 3,
-        # Default build advertises FIDO_2_0 and FIDO_2_1 -> CTAP upv 1.0 and 1.1.
+        # Non-resident second-factor SKU advertises FIDO_2_0 and FIDO_2_1
+        # -> CTAP upv 1.0 and 1.1. Must match the device getInfo versions exactly.
         "upv": [
             {"major": 1, "minor": 0},
             {"major": 1, "minor": 1}

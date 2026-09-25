@@ -47,9 +47,11 @@
     #define CM_cmdRKBegin         0x04
     #define CM_cmdRKNext          0x05
     #define CM_cmdRKDelete        0x06
+    #define CM_cmdRKUpdate        0x07
 #define CM_subCommandParams       0x02
     #define CM_subCommandRpId     0x01
     #define CM_subCommandCred     0x02
+    #define CM_subCommandUser     0x03
 #define CM_pinProtocol            0x03
 #define CM_pinAuth                0x04
 
@@ -76,8 +78,13 @@
 #define CTAP_PERM_BE             0x08   // bioEnrollment
 #define CTAP_PERM_LBW            0x10   // largeBlobWrite
 #define CTAP_PERM_ACFG           0x20   // authenticatorConfiguration
-// This non-resident product only grants makeCredential + getAssertion.
+// Passkey (RESIDENT_KEYS) build also grants credentialManagement; the non-resident
+// second-factor build grants only makeCredential + getAssertion.
+#ifdef RESIDENT_KEYS
+#define CTAP_PERM_SUPPORTED      (CTAP_PERM_MC | CTAP_PERM_GA | CTAP_PERM_CM)
+#else
 #define CTAP_PERM_SUPPORTED      (CTAP_PERM_MC | CTAP_PERM_GA)
+#endif
 
 // PIN enforcement policy (build-time; pass -DPIN_POLICY=<n>, or use PIN_POLICY=... in
 // build.sh). Default is optional so the relying party decides via userVerification.
@@ -361,6 +368,7 @@ typedef struct
     struct {
         uint8_t rpIdHash[32];
         CTAP_credentialDescriptor credentialDescriptor;
+        CTAP_userEntity user;               // updateUserInformation (0x07)
     } subCommandParams;
 
     struct {
@@ -369,7 +377,7 @@ typedef struct
     } hashed;
     uint32_t subCommandParamsCborSize;
 
-    uint8_t pinAuth[16];
+    uint8_t pinAuth[32];        // up to 32 bytes for PIN/UV auth protocol 2
     uint8_t pinAuthPresent;
     int pinProtocol;
 } CTAP_credMgmt;

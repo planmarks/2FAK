@@ -56,6 +56,26 @@ SECTIONS
         _etext = .;
     } >flash
 
+    /* ARM unwinding tables. Place them here explicitly so the toolchain does NOT append
+       them after .flag (orphan placement). The bootloader reads the firmware version from
+       the LAST 4 bytes of the app image, so .flag (which holds firmware_version) MUST be
+       the final flash section. */
+    .ARM.extab :
+    {
+        . = ALIGN(4);
+        *(.ARM.extab* .gnu.linkonce.armextab.*)
+        . = ALIGN(4);
+    } >flash
+
+    .ARM.exidx :
+    {
+        . = ALIGN(4);
+        __exidx_start = .;
+        *(.ARM.exidx*)
+        __exidx_end = .;
+        . = ALIGN(4);
+    } >flash
+
     _sidata = LOADADDR(.data);
 
     .data :

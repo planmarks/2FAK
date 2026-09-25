@@ -96,8 +96,13 @@ LDFLAGS="$(LDFLAGS_LIB)" \
 CFLAGS="$(CFLAGS) -Os -g3  -DCBOR_PARSER_MAX_RECURSIONS=3"
 
 
+# Default to the 256KB (128-page) layout. The rest of the system (app C code via
+# -DPAGES, the bootloader build, and make_all.py's hardcoded AUTH_WORD/ATTESTATION
+# addresses) already assumes 128 pages; the linker must match so the app CODE region
+# is the full ~196KB and the .flag/auth marker lands at APPLICATION_END_ADDR
+# (0x08035FF8). A stale 64 here silently confined the app to a 68KB slot.
 ifndef PAGES
-PAGES=64
+PAGES=128
 $(warning PAGES is not defined - setting to new value: "$(PAGES)")
 endif
 $(LDSCRIPT): $(LDSCRIPT).in

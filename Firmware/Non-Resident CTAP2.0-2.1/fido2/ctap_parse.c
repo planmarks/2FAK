@@ -1033,6 +1033,102 @@ uint8_t parse_allow_list(CTAP_getAssertion * GA, CborValue * it)
     return 0;
 }
 
+// Parse a PublicKeyCredentialUserEntity map into `user`, clearing it first so that any
+// field omitted by the platform is removed (required by credMgmt updateUserInformation).
+// Recognises id (required), name and displayName; other keys (e.g. icon) are ignored.
+static uint8_t parse_user_entity(CTAP_userEntity * user, CborValue * val)
+{
+    size_t sz, map_length;
+    uint8_t key[24];
+    int ret;
+    unsigned int i;
+    CborValue map;
+
+    if (cbor_value_get_type(val) != CborMapType)
+    {
+        printf2(TAG_ERR,"error, user is not a map\n");
+        return CTAP2_ERR_INVALID_CBOR_TYPE;
+    }
+
+    ret = cbor_value_enter_container(val, &map);
+    check_ret(ret);
+    ret = cbor_value_get_map_length(val, &map_length);
+    check_ret(ret);
+
+    memset(user, 0, sizeof(CTAP_userEntity));
+
+    for (i = 0; i < map_length; i++)
+    {
+        if (cbor_value_get_type(&map) != CborTextStringType)
+        {
+            return CTAP2_ERR_INVALID_CBOR_TYPE;
+        }
+        sz = sizeof(key);
+        ret = cbor_value_copy_text_string(&map, (char *)key, &sz, NULL);
+        if (ret == CborErrorOutOfMemory)
+        {
+            return CTAP2_ERR_LIMIT_EXCEEDED;
+        }
+        check_ret(ret);
+        key[sizeof(key) - 1] = 0;
+        ret = cbor_value_advance(&map);
+        check_ret(ret);
+
+        if (strcmp((const char*)key, "id") == 0)
+        {
+            if (cbor_value_get_type(&map) != CborByteStringType)
+            {
+                return CTAP2_ERR_INVALID_CBOR_TYPE;
+            }
+            sz = USER_ID_MAX_SIZE;
+            ret = cbor_value_copy_byte_string(&map, user->id, &sz, NULL);
+            if (ret == CborErrorOutOfMemory)
+            {
+                return CTAP2_ERR_LIMIT_EXCEEDED;
+            }
+            user->id_size = sz;
+            check_ret(ret);
+        }
+        else if (strcmp((const char *)key, "name") == 0)
+        {
+            if (cbor_value_get_type(&map) != CborTextStringType)
+            {
+                return CTAP2_ERR_INVALID_CBOR_TYPE;
+            }
+            sz = USER_NAME_LIMIT;
+            ret = cbor_value_copy_text_string(&map, (char *)user->name, &sz, NULL);
+            if (ret != CborErrorOutOfMemory)
+            {
+                check_ret(ret);
+            }
+            user->name[USER_NAME_LIMIT - 1] = 0;
+        }
+        else if (strcmp((const char *)key, "displayName") == 0)
+        {
+            if (cbor_value_get_type(&map) != CborTextStringType)
+            {
+                return CTAP2_ERR_INVALID_CBOR_TYPE;
+            }
+            sz = DISPLAY_NAME_LIMIT;
+            ret = cbor_value_copy_text_string(&map, (char *)user->displayName, &sz, NULL);
+            if (ret != CborErrorOutOfMemory)
+            {
+                check_ret(ret);
+            }
+            user->displayName[DISPLAY_NAME_LIMIT - 1] = 0;
+        }
+        else
+        {
+            printf1(TAG_PARSE,"ignoring key %s for user map\n", key);
+        }
+
+        ret = cbor_value_advance(&map);
+        check_ret(ret);
+    }
+
+    return 0;
+}
+
 static uint8_t parse_cred_mgmt_subcommandparams(CborValue * val, CTAP_credMgmt * CM)
 {
     size_t map_length;
@@ -1083,6 +1179,10 @@ static uint8_t parse_cred_mgmt_subcommandparams(CborValue * val, CTAP_credMgmt *
                 ret = parse_credential_descriptor(&map, &CM->subCommandParams.credentialDescriptor);
                 check_ret(ret);;
                 break;
+            case CM_subCommandUser:
+                ret = parse_user_entity(&CM->subCommandParams.user, &map);
+                check_ret(ret);
+                break;
             default:
               printf2(TAG_ERR, "Error, unidentified key: 0x%x\n", key);
               return CTAP2_ERR_INVALID_OPTION;
@@ -1115,6 +1215,7 @@ uint8_t ctap_parse_cred_mgmt(CTAP_credMgmt * CM, uint8_t * request, int length)
     CborValue it,map;
 
     memset(CM, 0, sizeof(CTAP_credMgmt));
+    CM->pinProtocol = 1;   // default when the (optional) protocol field is absent
     ret = cbor_parser_init(request, length, CborValidateCanonicalFormat, &parser, &it);
     check_ret(ret);
 
@@ -1180,12 +1281,14 @@ uint8_t ctap_parse_cred_mgmt(CTAP_credMgmt * CM, uint8_t * request, int length)
                     return CTAP2_ERR_INVALID_CBOR_TYPE;
                 }
                 break;
-            case CM_pinAuth:
+            case CM_pinAuth: {
                 printf1(TAG_PARSE, "CM_pinAuth\n");
-                ret = parse_fixed_byte_string(&map, CM->pinAuth, 16);
+                int cm_pinauth_len = 0;
+                ret = parse_var_byte_string(&map, CM->pinAuth, 32, &cm_pinauth_len);
                 check_retr(ret);
                 CM->pinAuthPresent = 1;
                 break;
+            }
         }
         ret = cbor_value_advance(&map);
         check_ret(ret);

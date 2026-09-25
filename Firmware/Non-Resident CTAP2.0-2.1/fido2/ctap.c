@@ -36,6 +36,13 @@ static int8_t PIN_BOOT_ATTEMPTS_LEFT = PIN_BOOT_ATTEMPTS;
 AuthenticatorState STATE;
 
 static void ctap_reset_key_agreement();
+static int credentialId_to_rk_index(CredentialId * credId);
+
+// Bits packed into the (MAC-covered) masked metadata field of a credential id.
+// The low byte holds the credProtect level; a high bit flags a discoverable
+// (resident) credential so a deleted one cannot still authenticate via an allowList.
+#define CRED_META_PROTECT_MASK   0x000000FFu
+#define CRED_META_DISCOVERABLE   0x00000100u
 
 struct _getAssertionState getAssertionState;
 
@@ -91,7 +98,11 @@ static uint8_t ctap_pin_uv_token_check(uint8_t needed, const uint8_t *rpId, int 
     }
     if (!(PIN_TOKEN_STATE.permissions & needed))
     {
-        return CTAP2_ERR_UNAUTHORIZED_PERMISSION;
+        // Per CTAP2.1, when a PRESENTED pinUvAuthToken lacks the permission the operation
+        // needs (mc/ga/cm), the command returns PIN_AUTH_INVALID. UNAUTHORIZED_PERMISSION
+        // is only for the token-ISSUANCE request (getPinUvAuthTokenUsingPinWithPermissions)
+        // asking for a permission the authenticator does not support.
+        return CTAP2_ERR_PIN_AUTH_INVALID;
     }
     crypto_sha256_init();
     crypto_sha256_update((uint8_t *)rpId, rpIdLen);
@@ -137,7 +148,7 @@ static uint32_t read_metadata_from_masked_credential(CredentialId * credential){
 
 uint8_t check_credential_metadata(CredentialId * credential, uint8_t is_verified, uint8_t is_from_credid_list)
 {
-    uint32_t cred_protect = read_metadata_from_masked_credential(credential);
+    uint32_t cred_protect = read_metadata_from_masked_credential(credential) & CRED_META_PROTECT_MASK;
     switch (cred_protect){
         case EXT_CRED_PROTECT_OPTIONAL_WITH_CREDID:
             if (!is_from_credid_list) {
@@ -259,10 +270,14 @@ uint8_t ctap_get_info(CborEncoder * encoder)
         ret = cbor_encode_uint(&map, RESP_options);
         check_ret(ret);
         {
-            // Options: rk, up, plat, [alwaysUv], clientPin, pinUvAuthToken.
-            // credentialMgmtPreview is intentionally NOT advertised (non-resident build).
-            // alwaysUv is only present when the PIN policy forces UV on every operation.
-#if PIN_POLICY == PIN_POLICY_ALWAYS_UV
+            // Options: rk, up, plat, [alwaysUv], [credMgmt], clientPin, pinUvAuthToken.
+            // With RESIDENT_KEYS the device is a passkey authenticator (rk + credMgmt);
+            // without it, a non-resident second-factor (rk=false, no credMgmt). Keys are
+            // emitted in CTAP2 canonical order (length, then bytewise). alwaysUv is only
+            // present when the PIN policy forces UV on every operation.
+#if defined(RESIDENT_KEYS) && (PIN_POLICY == PIN_POLICY_ALWAYS_UV)
+            ret = cbor_encoder_create_map(&map, &options,7);
+#elif defined(RESIDENT_KEYS) || (PIN_POLICY == PIN_POLICY_ALWAYS_UV)
             ret = cbor_encoder_create_map(&map, &options,6);
 #else
             ret = cbor_encoder_create_map(&map, &options,5);
@@ -272,7 +287,11 @@ uint8_t ctap_get_info(CborEncoder * encoder)
                 ret = cbor_encode_text_string(&options, "rk", 2);
                 check_ret(ret);
                 {
-                    ret = cbor_encode_boolean(&options, 0);     // Non-resident build: no discoverable credentials (second-factor only)
+#ifdef RESIDENT_KEYS
+                    ret = cbor_encode_boolean(&options, 1);     // Supports discoverable credentials (passkeys)
+#else
+                    ret = cbor_encode_boolean(&options, 0);     // Non-resident: second-factor only
+#endif
                     check_ret(ret);
                 }
 
@@ -302,6 +321,18 @@ uint8_t ctap_get_info(CborEncoder * encoder)
 
 #if PIN_POLICY == PIN_POLICY_ALWAYS_UV
                 ret = cbor_encode_text_string(&options, "alwaysUv", 8);
+                check_ret(ret);
+                {
+                    ret = cbor_encode_boolean(&options, 1);
+                    check_ret(ret);
+                }
+#endif
+
+#ifdef RESIDENT_KEYS
+                // credMgmt: supports authenticatorCredentialManagement (0x0A) for
+                // enumerating/deleting discoverable credentials. Canonical order places
+                // this 8-char key after "alwaysUv" and before "clientPin".
+                ret = cbor_encode_text_string(&options, "credMgmt", 8);
                 check_ret(ret);
                 {
                     ret = cbor_encode_boolean(&options, 1);
@@ -849,7 +880,15 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
         memset((uint8_t*)&authData->attest.id, 0, sizeof(CredentialId));
 
         ctap_generate_rng(authData->attest.id.entropy.nonce, CREDENTIAL_NONCE_SIZE);
-        add_masked_metadata_for_credential(&authData->attest.id, extensions->cred_protect);
+        // Pack credProtect in the low byte and, for a discoverable (resident) credential,
+        // set the discoverable flag so a later allowList assertion can require the resident
+        // record to still exist (a deleted passkey must not authenticate).
+        uint32_t cred_meta = (extensions->cred_protect & CRED_META_PROTECT_MASK);
+        if (credInfo->rk)
+        {
+            cred_meta |= CRED_META_DISCOVERABLE;
+        }
+        add_masked_metadata_for_credential(&authData->attest.id, cred_meta);
 
         authData->attest.id.count = count;
 
@@ -858,15 +897,14 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
         // Make a tag we can later check to make sure this is a token we made
         make_auth_tag(authData->head.rpIdHash, authData->attest.id.entropy.nonce, count, authData->attest.id.tag);
 
-        // resident key
+        // resident key (discoverable credential / passkey).
         if (credInfo->rk)
         {
-            // Non-resident build: discoverable credentials (passkeys) are not
-            // supported. Tell the RP so it falls back to a non-resident credential.
+#ifndef RESIDENT_KEYS
+            // Non-resident (second-factor) build: discoverable credentials are not
+            // supported; tell the RP so it falls back to a non-resident credential.
             return CTAP2_ERR_UNSUPPORTED_OPTION;
-        }
-        if (0)
-        {
+#else
             memmove(&rk.id, &authData->attest.id, sizeof(CredentialId));
             memmove(&rk.user, &credInfo->user, sizeof(CTAP_userEntity));
 
@@ -898,8 +936,11 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
 
             printf2(TAG_ERR, "Out of memory for resident keys\r\n");
             return CTAP2_ERR_KEY_STORE_FULL;
+#endif
         }
-done_rk:
+#ifdef RESIDENT_KEYS
+done_rk:     // only a goto target in the resident (rk-storage) path
+#endif
 
         printf1(TAG_GREEN, "MADE credId: "); dump_hex1(TAG_GREEN, (uint8_t*) &authData->attest.id, sizeof(CredentialId));
 
@@ -1374,21 +1415,32 @@ int ctap_filter_invalid_credentials(CTAP_getAssertion * GA)
         }
         else
         {
-
-            int protection_status =
-                check_credential_metadata(&GA->creds[i].credential.id, getAssertionState.user_verified, 1);
-
-            if (protection_status != 0) {
-                printf1(TAG_GREEN,"skipping protected wrapped credential.\r\n");
+            uint32_t meta = read_metadata_from_masked_credential(&GA->creds[i].credential.id);
+            if ((meta & CRED_META_DISCOVERABLE)
+                && credentialId_to_rk_index(&GA->creds[i].credential.id) < 0)
+            {
+                // Credential was created as discoverable (resident) but its resident
+                // record no longer exists (deleted via credMgmt). It must not be usable
+                // via an allowList entry, so treat it as not found.
+                printf1(TAG_GA, "deleted discoverable cred; invalidating\r\n");
                 GA->creds[i].credential.id.count = 0;      // invalidate
             }
             else
             {
-                // add user info if it exists
-                add_existing_user_info(&GA->creds[i]);
-                count++;
-            }
+                int protection_status =
+                    check_credential_metadata(&GA->creds[i].credential.id, getAssertionState.user_verified, 1);
 
+                if (protection_status != 0) {
+                    printf1(TAG_GREEN,"skipping protected wrapped credential.\r\n");
+                    GA->creds[i].credential.id.count = 0;      // invalidate
+                }
+                else
+                {
+                    // add user info if it exists
+                    add_existing_user_info(&GA->creds[i]);
+                    count++;
+                }
+            }
         }
     }
 
@@ -1721,15 +1773,25 @@ uint8_t ctap_cred_mgmt_pinauth(CTAP_credMgmt *CM)
     if (CM->cmd != CM_cmdMetadata &&
         CM->cmd != CM_cmdRPBegin &&
         CM->cmd != CM_cmdRKBegin &&
-        CM->cmd != CM_cmdRKDelete)
+        CM->cmd != CM_cmdRKDelete &&
+        CM->cmd != CM_cmdRKUpdate)
     {
-        // pinAuth is not required for other commands
+        // pinAuth is not required for the enumerate *Next commands
         return 0;
     }
 
-    // credMgmt is not used by this non-resident product and its pinAuth buffer is 16
-    // bytes, so verify at protocol 1 (16-byte compare) to avoid any out-of-bounds read.
-    int8_t ret = verify_pin_auth_ex(1, CM->pinAuth, 16, (uint8_t*)&CM->hashed, CM->subCommandParamsCborSize + 1);
+    // The pinUvAuthToken must carry the credentialManagement (cm) permission. credMgmt
+    // is not RP-scoped, so no rpId is supplied.
+    uint8_t pret = ctap_pin_uv_token_check(CTAP_PERM_CM, NULL, 0);
+    if (pret != 0)
+    {
+        return pret;
+    }
+
+    // pinUvAuthParam = HMAC(pinUvAuthToken, cmd || subCommandParams). Verify with the
+    // protocol the platform selected (16-byte tag for v1, 32-byte for v2).
+    int alen = pin_protocol_auth_length(CM->pinProtocol);
+    int8_t ret = verify_pin_auth_ex(CM->pinProtocol, CM->pinAuth, alen, (uint8_t*)&CM->hashed, CM->subCommandParamsCborSize + 1);
 
     if (ret == CTAP2_ERR_PIN_AUTH_INVALID)
     {
@@ -1972,6 +2034,28 @@ uint8_t ctap_cred_mgmt(CborEncoder * encoder, uint8_t * request, int length)
                 return CTAP2_ERR_NO_CREDENTIALS;
             }
             break;
+        case CM_cmdRKUpdate:
+        {
+            printf1(TAG_CM, "CM_cmdRKUpdate\n");
+            int idx = credentialId_to_rk_index(&CM.subCommandParams.credentialDescriptor.credential.id);
+            if (idx < 0)
+            {
+                printf1(TAG_CM, "No Rk by given credId\n");
+                return CTAP2_ERR_NO_CREDENTIALS;
+            }
+            CTAP_residentKey rk_upd;
+            ctap_load_rk(idx, &rk_upd);
+            // The user handle (user.id) identifies the credential and MUST match the
+            // stored one; only name/displayName may change.
+            if (rk_upd.user.id_size != CM.subCommandParams.user.id_size ||
+                memcmp(rk_upd.user.id, CM.subCommandParams.user.id, rk_upd.user.id_size) != 0)
+            {
+                return CTAP1_ERR_INVALID_PARAMETER;
+            }
+            memmove(&rk_upd.user, &CM.subCommandParams.user, sizeof(CTAP_userEntity));
+            ctap_overwrite_rk(idx, &rk_upd);
+            break;
+        }
         default:
             printf2(TAG_ERR, "error, invalid credMgmt cmd: 0x%02x\n", CM.cmd);
             return CTAP1_ERR_INVALID_COMMAND;
