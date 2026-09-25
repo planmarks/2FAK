@@ -16,9 +16,6 @@ board *is* the USB-A plug: no cable, no moving connector.
   Firmware/
     Non-Resident CTAP2.0-2.1/   Second-factor authenticator (no discoverable creds)
     Resident CTAP2.3/           Passkey authenticator (discoverable creds + credMgmt)
-  Tools/                        Build/flashing/test tooling
-  Docs/                         Product and technical documentation
-  pidcodes/                     pid.codes PID allocation request (PR content)
   LICENSE  LICENSE-APACHE  LICENSE-MIT  NOTICE
 ```
 
