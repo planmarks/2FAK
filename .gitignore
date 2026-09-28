@@ -44,6 +44,12 @@ Thumbs.db
 .idea/
 __pycache__/
 *.pyc
+# KiCad per-user UI state and Blender autosave backups (not source)
+*.kicad_prl
+*.blend1
+
+# ---- Internal engineering notes (kept out of the public repo) ----
+Hardware/2FA_Key_HANDOFF.md
 
 # ============================================================================
 # SECRETS - never publish. These stay on the build/flashing machines only.

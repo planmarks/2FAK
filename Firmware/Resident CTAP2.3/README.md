@@ -139,8 +139,8 @@ Look at the issues to see what is currently being worked on. Feel free to add is
 
 This software is fully open source.
 
-All software, unless otherwise noted, is dual licensed under Apache 2.0 and MIT.
-You may use this software under the terms of either the Apache 2.0 license or MIT license.
+All software, unless otherwise noted, is licensed under Apache 2.0.
+You may use this software under the terms of the Apache 2.0 license.
 
 All hardware, unless otherwise noted, is dual licensed under CERN and CC-BY-SA.
 You may use the hardware under the terms of either the CERN 2.1 license or CC-BY-SA 4.0 license.

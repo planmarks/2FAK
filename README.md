@@ -4,7 +4,7 @@ Open-source USB security key (FIDO2 / WebAuthn / CTAP) by **muru.global**, built
 an STMicroelectronics STM32L442KCU6 with an optional ATECC608B secure element. The
 board *is* the USB-A plug: no cable, no moving connector.
 
-- USB VID/PID: **0x1209 / 0x2FA2** (0x1209 is the pid.codes open-source Vendor ID)
+- USB VID/PID: **0x1209 / 0x2FA2** (0x1209 is the pid.codes open-source Vendor ID; PID 0x2FA2 is registered to us at pid.codes)
 - AAGUID: **c2aa81f8-352d-56e2-c689-2bfdb5a52ccc**
 - Firmware lineage: fork of Nitrokey FIDO2 / SoloKeys solo1 (see `NOTICE`)
 
@@ -18,8 +18,8 @@ board *is* the USB-A plug: no cable, no moving connector.
     Resident CTAP2.3/           Passkey authenticator (discoverable creds + credMgmt)
   Tools/                        Build/flashing/test tooling
   Docs/                         Product and technical documentation
-  pidcodes/                     pid.codes PID allocation request (PR content)
-  LICENSE  LICENSE-APACHE  LICENSE-MIT  NOTICE
+  pidcodes/                     pid.codes PID allocation (PR approved and merged)
+  LICENSE-APACHE  NOTICE
 ```
 
 ## Two firmware variants
@@ -70,5 +70,5 @@ Releases, not committed to the tree.
 
 ## License
 
-Dual-licensed under **Apache-2.0 OR MIT**, at your option. See `LICENSE`, `LICENSE-APACHE`,
-`LICENSE-MIT`, and `NOTICE` for third-party attribution.
+Licensed under **Apache-2.0**. See `LICENSE-APACHE` for the full license text and
+`NOTICE` for third-party attribution.

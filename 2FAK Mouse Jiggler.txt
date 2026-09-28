@@ -1,0 +1,57 @@
+2FAK Mouse Jiggler
+==================
+
+What it is
+----------
+The Mouse Jiggler is the programmable variant of the 2FAK hardware, running mouse-jiggler
+firmware instead of the security-key firmware. It uses the same STM32L442 USB-A blade board,
+but WITHOUT the ATECC608B secure element fitted: a mouse jiggler does not store credentials
+or hold any device secret, so the secure element is not needed and its footprint is left
+unpopulated on this variant. This also makes it the lower-cost, programmable board.
+
+What it does
+------------
+Plugged into any USB-A port, it enumerates as an ordinary USB HID mouse. Every short while it
+moves the pointer by a tiny amount - just enough for the computer to register activity - so
+the screen does not dim or sleep, the session does not go idle, and long-running jobs keep
+going. Because the operating system just sees a normal mouse, there is nothing to install and
+no drivers or administrator rights are required. It behaves the same on any machine, including
+locked-down work laptops where software cannot be installed.
+
+Controls
+--------
+- Button: press to start or pause the jiggling.
+- Status LED: shows whether it is active.
+
+Typical uses
+------------
+- Keep long downloads, installs, backups and renders from stopping when the machine idles.
+- Stop the screen dimming while reading or watching something.
+- Keep remote-desktop and VPN sessions from timing out.
+- Keep a dashboard or monitoring screen always on.
+
+Programmable and open
+---------------------
+This is a programmable device with open SWD programming pins, reachable with an ST-Link
+programmer. The same hardware can be reflashed to other roles from the project's open-source
+firmware and templates (for example a DIY FIDO2 security key or a HID-injection tool). It
+ships with pre-made mouse-jiggler and HID-injection firmware; additional project templates and
+optional 3D-printable enclosure files are on the project's GitHub.
+
+Note: because the programmable variant has open programming pins and no secure element, it is
+intended for maker / DIY and utility use, not as a tamper-resistant security key. For a
+security key, use the pre-programmed 2FAK (with the secure element and read-out protection).
+
+Hardware (summary)
+------------------
+- Controller: STM32L442KCU6 (Arm Cortex-M4, up to 80 MHz), 256 KB flash, 64 KB SRAM.
+- Secure element: none (ATECC608B footprint unpopulated on this variant).
+- Interface: USB 2.0 Full-Speed, USB-A male blade (the board is the plug; no cable).
+- Appears as: standard USB HID mouse.
+- Controls: one button, one status LED.
+- Power: USB bus-powered, about 30 mA, no battery.
+- Programming: SWD (open pins, ST-Link) - reflashable.
+- Board: ~48 x 21 mm, 2-layer FR4. Hardware revision V1A.
+- Works with: Windows, macOS, Linux - anything that accepts a USB mouse.
+
+Please use it on your own computer and in line with your workplace rules.
