@@ -67,5 +67,4 @@ Releases, not committed to the tree.
 
 ## License
 
-Dual-licensed under **Apache-2.0 OR MIT**, at your option. See `LICENSE`, `LICENSE-APACHE`,
-`LICENSE-MIT`
+Dual-licensed under **Apache-2.0 OR MIT**, at your option. See `LICENSE-APACHE`
