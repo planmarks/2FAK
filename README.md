@@ -16,7 +16,7 @@ board *is* the USB-A plug: no cable, no moving connector.
   Firmware/
     Non-Resident CTAP2.0-2.1/   Second-factor authenticator (no discoverable creds)
     Resident CTAP2.3/           Passkey authenticator (discoverable creds + credMgmt)
-  LICENSE  LICENSE-APACHE  LICENSE-MIT  NOTICE
+  LICENSE-APACHE   NOTICE
 ```
 
 ## Two firmware variants
@@ -68,4 +68,4 @@ Releases, not committed to the tree.
 ## License
 
 Dual-licensed under **Apache-2.0 OR MIT**, at your option. See `LICENSE`, `LICENSE-APACHE`,
-`LICENSE-MIT`, and `NOTICE` for third-party attribution.
+`LICENSE-MIT`
