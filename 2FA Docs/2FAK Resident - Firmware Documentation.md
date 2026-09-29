@@ -75,6 +75,23 @@ FIDO2 firmware, which derives from SoloKeys Solo 1.
 - **credProtect** (credential-protection levels; the level is also reported through
   credential management).
 
+## Hardware SSH keys (OpenSSH)
+
+Because SSH's FIDO key types ride on the standard FIDO2 credential flow, this firmware works
+as a hardware-backed SSH key with **no firmware changes**:
+
+- OpenSSH 8.2+ `ecdsa-sk` keys use ES256, which is exactly what this firmware advertises;
+  the FIDO application string `ssh:` is treated as an ordinary RP ID (no RP-ID filtering).
+- **Resident (portable) SSH keys** (`ssh-keygen -t ecdsa-sk -O resident`) are supported
+  because this variant stores discoverable credentials; they can be pulled onto any machine
+  with `ssh-keygen -K`. The non-resident variant can only do non-resident `ecdsa-sk` keys.
+- `verify-required` maps to the device PIN (Client PIN) plus the touch (user presence).
+- `ed25519-sk` is **not** supported (no Ed25519/EdDSA in the firmware); use `ecdsa-sk`.
+
+Full sysadmin workflow (resident enroll/export, ProxyJump bastions, Ansible
+`authorized_keys`, SSH-CA integration, PIN tiering, Windows/PuTTY, backup enrollment, and
+the `2FAK-ssh-enroll` helper) is documented in `2FAK Resident - Hardware SSH Key Guide.md`.
+
 ## Attestation
 
 - Packed / `basic_full` attestation, muru.global batch attestation key + certificate on
