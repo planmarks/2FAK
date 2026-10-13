@@ -34,6 +34,14 @@ void crypto_ecdsa_sign(uint8_t * data, int len, uint8_t * sig, int MBEDTLS_ECP_I
 
 void generate_private_key(uint8_t * data, int len, uint8_t * data2, int len2, uint8_t * privkey);
 void crypto_ecc256_make_key_pair(uint8_t * pubkey, uint8_t * privkey);
+
+// Ed25519 (EdDSA, COSE alg -8). Per-credential key material is derived from the (ATECC-rooted)
+// master secret exactly like the P-256 keys; keygen+sign run in software (TweetNaCl). The
+// derived 32-byte value is used directly as the Ed25519 seed. Max signable message is bounded.
+#define CRYPTO_ED25519_SIGN_MSG_MAX   512
+void crypto_ed25519_derive_pubkey(uint8_t * data, int len, uint8_t pubkey[32]);
+// Returns 1 on success, 0 if msglen is out of range. `sig` receives the 64-byte signature.
+int  crypto_ed25519_sign(uint8_t * data, int len, const uint8_t * msg, int msglen, uint8_t sig[64]);
 void crypto_ecc256_shared_secret(const uint8_t * pubkey, const uint8_t * privkey, uint8_t * shared_secret);
 
 #define CRYPTO_TRANSPORT_KEY2            ((uint8_t*)2)

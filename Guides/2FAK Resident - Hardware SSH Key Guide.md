@@ -27,9 +27,9 @@ or a compromised jump host cannot use your key without the token in hand.
 - **OpenSSH 8.2 or newer** with FIDO/`libfido2` support on every machine you connect *from*.
   Check with `ssh -V`. (Servers you connect *to* only need 8.2+ to understand the
   `sk-ecdsa-sha2-nistp256@openssh.com` key type in `authorized_keys`.)
-- A **2FAK Passkey (Resident)** key. The firmware supports **ES256**, so SSH uses the
-  `ecdsa-sk` key type. `ed25519-sk` is **not** supported (the firmware has no Ed25519); use
-  `ecdsa-sk`, which is cryptographically equivalent for this purpose.
+- A **2FAK Passkey (Resident)** key. The firmware supports **both ES256 (`ecdsa-sk`) and
+  Ed25519 (`ed25519-sk`)**; use whichever your workflow prefers. Both have been tested working
+  end to end (key generation + authentication) **locally and against Cloudflare**.
 - Linux/macOS: `libfido2` present (usually packaged with OpenSSH). Windows: see
   [Windows](#windows--putty).
 
@@ -77,6 +77,10 @@ ssh-keygen -K            # writes id_ecdsa_sk_rk* for each resident key on the t
 Then reference the downloaded file with `ssh -i` or an `IdentityFile` line. This is the
 workflow that makes the Passkey firmware attractive for admins who move between machines.
 
+> Note: `ssh-keygen -K` works for **anyone holding the token** unless the key was enrolled
+> with a device PIN - the touch gate does not protect export. Set a PIN (see
+> [PIN tiering](#5-pin-tiering-touch-only-vs-pintouch)).
+
 ## 3. Install the public key on servers
 
 For a handful of servers, append the `.pub` line to each server's `~/.ssh/authorized_keys`:
@@ -87,12 +91,16 @@ ssh-copy-id -f -i ~/.ssh/id_ecdsa_sk_prod.pub user@server
 ```
 
 The line is of type `sk-ecdsa-sha2-nistp256@openssh.com`. You can harden it with per-key
-options, e.g. require the touch flag and pin the source:
+options - for example restrict the source network and require user verification (PIN):
 
 ```
 # ~/.ssh/authorized_keys on the server
-sk-ecdsa-sha2-nistp256@openssh.com AAAAInNr... 2fak:prod
+from="10.0.0.0/8",verify-required sk-ecdsa-sha2-nistp256@openssh.com AAAAInNr... 2fak:prod
 ```
+
+`verify-required` makes the server reject the key unless it was used with the device PIN;
+`from="10.0.0.0/8"` limits which source networks may use it. (Starting from `restrict` and
+re-enabling only what you need, e.g. `restrict,pty,from="10.0.0.0/8"`, is a stricter base.)
 
 ### Fleet distribution with Ansible
 
@@ -158,10 +166,16 @@ insist on it:
 verify-required sk-ecdsa-sha2-nistp256@openssh.com AAAAInNr... 2fak:prod
 ```
 
-Set/'change the device PIN with your normal FIDO2 tooling (e.g. the OS security-key
+Set or change the device PIN with your normal FIDO2 tooling (e.g. the OS security-key
 settings, or `fido2-token -S`). Standard CTAP retry limits apply: the key locks for the
 session after repeated wrong PINs and blocks after the retry count is exhausted; a device
 reset clears it (and destroys the resident keys).
+
+> **Set a PIN even for touch-only tiers.** A resident key enrolled *without* a device PIN
+> can be pulled off the token by **anyone physically holding it**, using `ssh-keygen -K` -
+> no PIN, no proof of ownership. The touch requirement only gates *use*, not *export*. For
+> any key that matters, set a device PIN (and enroll with `-O verify-required` on privileged
+> hosts) so a lost or borrowed token cannot have its keys extracted.
 
 ## 6. SSH certificate authority (larger fleets)
 
@@ -196,14 +210,18 @@ production.
 
 ## Windows / PuTTY
 
-- **OpenSSH for Windows:** recent builds ship `-sk` support; use the same `ssh-keygen`
-  commands from PowerShell. Ensure the OpenSSH version is 8.2+ (`ssh -V`).
-- **PuTTY:** FIDO/security-key support was added in PuTTY 0.79+ (via `ssh-keygen`-created
-  keys / Pageant). Import the `.pub`/handle as usual.
+- **OpenSSH for Windows (recommended):** recent builds support `-sk` keys; use the same
+  `ssh-keygen` commands from PowerShell. Ensure the OpenSSH version is 8.2+ (`ssh -V`). This
+  is the simplest path on Windows.
+- **PuTTY:** mainline PuTTY does **not** natively support FIDO `-sk` keys. Options are the
+  `putty-cac` fork (adds FIDO2/PIV support), or keep using mainline PuTTY/WinSCP/FileZilla
+  with the OpenSSH agent bridged in via `winssh-pageant`. If you only need PuTTY itself,
+  prefer Windows OpenSSH instead.
 - **USB-A** is convenient on servers, KVM carts, and older admin hardware where USB-C or
   Bluetooth keys are awkward.
 
-Reload load-time device gates after inserting the key if a tool does not detect it.
+If a tool does not detect the key right after you plug it in, start a fresh terminal (or
+restart the SSH agent) so it re-scans for the device, then retry.
 
 ## Git commit and tag signing (bonus)
 
@@ -224,10 +242,10 @@ key and a signing key.
   runs on its own. Use the 2FAK for **interactive, privileged, human** sessions; keep
   automation on separate service credentials or short-lived certificates. (`no-touch-required`
   exists but defeats the purpose - avoid it.)
-- **ES256 only.** `ecdsa-sk` is used; `ed25519-sk` is not supported by the firmware.
-- **`-sk` keys are MCU-held.** The ATECC608B secure element backs the device's FIDO master
-  secret on provisioned units; SSH `-sk` credentials themselves live in the MCU, not the
-  secure element.
+- **Both `ecdsa-sk` (ES256) and `ed25519-sk` (Ed25519) work** (tested locally and with
+  Cloudflare). Signing for both runs in the MCU; the per-key material is derived on demand from
+  the ATECC-rooted master secret and is never stored (the Ed25519 operation itself is software,
+  as the ATECC cannot perform Ed25519 - but the key is still hardware-rooted).
 - **Self-tested conformance, not FIDO Certified.** See
   `2FAK Resident - FIDO Conformance Readiness.md`.
 

@@ -154,7 +154,8 @@
 #define RPID_LIMIT                  48
 #define CTAP_MAX_MESSAGE_SIZE       1200
 
-#define CREDENTIAL_RK_FLASH_PAD     2   // size of RK should be 8-byte aligned to store in flash easily.
+#define CREDENTIAL_RK_FLASH_PAD     1   // RK size stays 8-byte aligned for flash; 1 byte of the
+                                        // old 2-byte pad now funds CredentialId.alg (net size unchanged).
 #define CREDENTIAL_TAG_SIZE         16
 #define CREDENTIAL_NONCE_SIZE       (16 + CREDENTIAL_RK_FLASH_PAD)
 #define CREDENTIAL_COUNTER_SIZE     (4)
@@ -195,6 +196,11 @@ typedef struct
     uint8_t icon[ICON_LIMIT];
 }__attribute__((packed)) CTAP_userEntity;
 
+// Compact per-credential signature algorithm code stored in the credential ID (and therefore
+// in resident-key records). Mapped to a COSE alg by cred_alg_to_cose(). Covered by the auth tag.
+#define CRED_ALG_ES256   0
+#define CRED_ALG_EDDSA   1
+
 typedef struct {
     uint8_t tag[CREDENTIAL_TAG_SIZE];
     union {
@@ -206,6 +212,7 @@ typedef struct {
     }__attribute__((packed)) entropy;
     uint8_t rpIdHash[32];
     uint32_t count;
+    uint8_t alg;            // CRED_ALG_* - the credential key's signature algorithm
 }__attribute__((packed)) CredentialId;
 
 struct  __attribute__((packed)) Credential {

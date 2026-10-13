@@ -7,8 +7,7 @@ firmware, licensed under the Apache License 2.0 or the MIT license:
   * SoloKeys "solo1" firmware   - https://github.com/solokeys/solo1
   * Nitrokey FIDO2 firmware     - https://github.com/Nitrokey/nitrokey-fido2-firmware
 
-The 2FAK firmware in this repository is dual-licensed under Apache-2.0 OR MIT
-(see LICENSE, LICENSE-APACHE, LICENSE-MIT).
+The 2FAK firmware in this repository is dual-licensed under Apache-2.0 license.
 
 Bundled third-party components retain their own licenses. Refer to the source
 headers in each component for authoritative terms. Summary:

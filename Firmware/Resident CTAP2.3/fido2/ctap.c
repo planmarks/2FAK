@@ -416,7 +416,8 @@ uint8_t ctap_get_info(CborEncoder * encoder)
         ret = cbor_encode_uint(&map, 0x0A); // algorithms
         check_ret(ret);
         {
-            ret = cbor_encoder_create_array(&map, &array, 1);
+            // Advertised in preference order: ES256 (-7) then EdDSA (-8).
+            ret = cbor_encoder_create_array(&map, &array, 2);
             check_ret(ret);
             {
                 ret = cbor_encoder_create_map(&array, &options, 2);
@@ -424,7 +425,23 @@ uint8_t ctap_get_info(CborEncoder * encoder)
                 {
                     ret = cbor_encode_text_string(&options, "alg", 3);
                     check_ret(ret);
-                    ret = cbor_encode_int(&options, -7);            // ES256
+                    ret = cbor_encode_int(&options, COSE_ALG_ES256);    // -7
+                    check_ret(ret);
+                    ret = cbor_encode_text_string(&options, "type", 4);
+                    check_ret(ret);
+                    ret = cbor_encode_text_stringz(&options, "public-key");
+                    check_ret(ret);
+                }
+                ret = cbor_encoder_close_container(&array, &options);
+                check_ret(ret);
+            }
+            {
+                ret = cbor_encoder_create_map(&array, &options, 2);
+                check_ret(ret);
+                {
+                    ret = cbor_encode_text_string(&options, "alg", 3);
+                    check_ret(ret);
+                    ret = cbor_encode_int(&options, COSE_ALG_EDDSA);    // -8
                     check_ret(ret);
                     ret = cbor_encode_text_string(&options, "type", 4);
                     check_ret(ret);
@@ -467,6 +484,30 @@ static int ctap_add_cose_key(CborEncoder * cose_key, uint8_t * x, uint8_t * y, u
 {
     int ret;
     CborEncoder map;
+
+    // EdDSA / Ed25519 is an OKP key: {1:OKP, 3:alg, -1:Ed25519, -2:x} - 4 entries, no y.
+    // Keys stay in CTAP2 canonical order (1,3,-1,-2 -> 0x01,0x03,0x20,0x21).
+    if (algtype == COSE_ALG_EDDSA)
+    {
+        ret = cbor_encoder_create_map(cose_key, &map, 4);
+        check_ret(ret);
+
+        ret = cbor_encode_int(&map, COSE_KEY_LABEL_KTY);   check_ret(ret);
+        ret = cbor_encode_int(&map, COSE_KEY_KTY_OKP);     check_ret(ret);
+
+        ret = cbor_encode_int(&map, COSE_KEY_LABEL_ALG);   check_ret(ret);
+        ret = cbor_encode_int(&map, algtype);              check_ret(ret);
+
+        ret = cbor_encode_int(&map, COSE_KEY_LABEL_CRV);   check_ret(ret);
+        ret = cbor_encode_int(&map, COSE_KEY_CRV_ED25519); check_ret(ret);
+
+        ret = cbor_encode_int(&map, COSE_KEY_LABEL_X);     check_ret(ret);
+        ret = cbor_encode_byte_string(&map, x, 32);        check_ret(ret);
+
+        ret = cbor_encoder_close_container(cose_key, &map);
+        check_ret(ret);
+        return 0;
+    }
 
     ret = cbor_encoder_create_map(cose_key, &map, 5);
     check_ret(ret);
@@ -529,6 +570,13 @@ static int ctap_generate_cose_key(CborEncoder * cose_key, uint8_t * hmac_input, 
             crypto_ecc256_derive_public_key(hmac_input, len, x, y);
             if (device_is_nfc() == NFC_IS_ACTIVE) device_set_clock_rate(DEVICE_LOW_POWER_IDLE);
             break;
+#ifndef IS_BOOTLOADER
+        case COSE_ALG_EDDSA:
+            if (device_is_nfc() == NFC_IS_ACTIVE) device_set_clock_rate(DEVICE_LOW_POWER_FAST);
+            crypto_ed25519_derive_pubkey(hmac_input, len, x);   // x = 32-byte pubkey; y unused
+            if (device_is_nfc() == NFC_IS_ACTIVE) device_set_clock_rate(DEVICE_LOW_POWER_IDLE);
+            break;
+#endif
         default:
             printf2(TAG_ERR,"Error, COSE alg %d not supported\n", algtype);
             return -1;
@@ -538,7 +586,17 @@ static int ctap_generate_cose_key(CborEncoder * cose_key, uint8_t * hmac_input, 
     return 0;
 }
 
-void make_auth_tag(uint8_t * rpIdHash, uint8_t * nonce, uint32_t count, uint8_t * tag)
+// Map between the compact in-credential alg code and the COSE algorithm identifier.
+static uint8_t cred_alg_from_cose(int32_t cose_alg)
+{
+    return (cose_alg == COSE_ALG_EDDSA) ? CRED_ALG_EDDSA : CRED_ALG_ES256;
+}
+static int32_t cred_alg_to_cose(uint8_t cred_alg)
+{
+    return (cred_alg == CRED_ALG_EDDSA) ? COSE_ALG_EDDSA : COSE_ALG_ES256;
+}
+
+void make_auth_tag(uint8_t * rpIdHash, uint8_t * nonce, uint32_t count, uint8_t alg, uint8_t * tag)
 {
     uint8_t hashbuf[32];
     memset(hashbuf,0,sizeof(hashbuf));
@@ -546,6 +604,7 @@ void make_auth_tag(uint8_t * rpIdHash, uint8_t * nonce, uint32_t count, uint8_t 
     crypto_sha256_update(rpIdHash, 32);
     crypto_sha256_update(nonce, CREDENTIAL_NONCE_SIZE);
     crypto_sha256_update((uint8_t*)&count, 4);
+    crypto_sha256_update(&alg, 1);
     crypto_sha256_hmac_final(CRYPTO_TRANSPORT_KEY,0,hashbuf);
 
     memmove(tag, hashbuf, CREDENTIAL_TAG_SIZE);
@@ -892,10 +951,14 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
 
         authData->attest.id.count = count;
 
+        // Record the credential key's signature algorithm (ES256 or EdDSA) IN the credential
+        // ID, before the tag + key are derived (both cover the whole CredentialId).
+        authData->attest.id.alg = cred_alg_from_cose(credInfo->COSEAlgorithmIdentifier);
+
         memmove(authData->attest.id.rpIdHash, authData->head.rpIdHash, 32);
 
         // Make a tag we can later check to make sure this is a token we made
-        make_auth_tag(authData->head.rpIdHash, authData->attest.id.entropy.nonce, count, authData->attest.id.tag);
+        make_auth_tag(authData->head.rpIdHash, authData->attest.id.entropy.nonce, count, authData->attest.id.alg, authData->attest.id.tag);
 
         // resident key (discoverable credential / passkey).
         if (credInfo->rk)
@@ -1103,7 +1166,7 @@ int ctap_authenticate_credential(struct rpId * rp, CTAP_credentialDescriptor * d
             {
                 return 0;
             }
-            make_auth_tag(rpIdHash, desc->credential.id.entropy.nonce, desc->credential.id.count, tag);
+            make_auth_tag(rpIdHash, desc->credential.id.entropy.nonce, desc->credential.id.count, desc->credential.id.alg, tag);
             return (memcmp(desc->credential.id.tag, tag, CREDENTIAL_TAG_SIZE) == 0);
         break;
         case PUB_KEY_CRED_CTAP1:
@@ -1551,10 +1614,34 @@ uint8_t ctap_end_get_assertion(CborEncoder * map, CTAP_credentialDescriptor * cr
     unsigned int cred_size = get_credential_id_size(cred->type);
     crypto_ecc256_load_key((uint8_t*)&cred->credential.id, cred_size, NULL, 0);
 
+    uint8_t * out_sig = sigder;     // ES256: DER in sigder; EdDSA: raw 64 bytes in sigbuf
+
 #ifdef ENABLE_U2F_EXTENSIONS
     if ( extend_fido2(&cred->credential.id, sigder) )
     {
         sigder_sz = 72;
+    }
+    else
+#endif
+#ifndef IS_BOOTLOADER
+    if (cred->credential.id.alg == CRED_ALG_EDDSA)
+    {
+        // EdDSA signs the raw authenticatorData || clientDataHash (no pre-hash, no DER);
+        // the WebAuthn assertion signature is the raw 64-byte Ed25519 signature.
+        static uint8_t ed_msg[CRYPTO_ED25519_SIGN_MSG_MAX];
+        unsigned int mlen = auth_data_buf_sz + CLIENT_DATA_HASH_SIZE;
+        if (mlen > CRYPTO_ED25519_SIGN_MSG_MAX)
+        {
+            return CTAP2_ERR_REQUEST_TOO_LARGE;
+        }
+        memmove(ed_msg, auth_data_buf, auth_data_buf_sz);
+        memmove(ed_msg + auth_data_buf_sz, clientDataHash, CLIENT_DATA_HASH_SIZE);
+        if ( ! crypto_ed25519_sign((uint8_t*)&cred->credential.id, cred_size, ed_msg, (int)mlen, sigbuf) )
+        {
+            return CTAP2_ERR_PROCESSING;
+        }
+        out_sig = sigbuf;
+        sigder_sz = 64;
     }
     else
 #endif
@@ -1565,7 +1652,7 @@ uint8_t ctap_end_get_assertion(CborEncoder * map, CTAP_credentialDescriptor * cr
     {
         ret = cbor_encode_int(map, RESP_signature);  // 3
         check_ret(ret);
-        ret = cbor_encode_byte_string(map, sigder, sigder_sz);
+        ret = cbor_encode_byte_string(map, out_sig, sigder_sz);
         check_ret(ret);
     }
 
@@ -1747,7 +1834,7 @@ uint8_t ctap_cred_rk(CborEncoder * encoder, int rk_ind, int rk_count)
     ret = cbor_encode_int(&map, 8);
     check_ret(ret);
     {
-        ctap_generate_cose_key(&map, (uint8_t*)&rk.id, sizeof(CredentialId), PUB_KEY_CRED_PUB_KEY, COSE_ALG_ES256);
+        ctap_generate_cose_key(&map, (uint8_t*)&rk.id, sizeof(CredentialId), PUB_KEY_CRED_PUB_KEY, cred_alg_to_cose(rk.id.alg));
     }
 
     if (rk_count > 0)

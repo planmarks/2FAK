@@ -100,16 +100,38 @@ SoloKeys Solo 1, and is built with the `RESIDENT=0` option.
   remains intact.
 - Production images are built without the `SOLO_HACKER` option.
 
-## Hardware root of trust (populated units)
+## Hardware root of trust (ATECC608B) - proven
 
-- On units with the ATECC608B fitted and provisioned, the FIDO master secret is derived
-  inside the secure element (MAC command, mode 0x06) from an unreadable root key, rather than
-  held only in MCU flash. Per-credential keys derive from that master secret.
-- If the secure element is absent, unprovisioned, or ever fails to derive, the firmware falls
-  back to a software master secret with no change in behaviour, so a missing or mis-provisioned
-  chip cannot break the FIDO function.
-- An authenticatorReset changes the per-device salt, which invalidates all previously derived
-  credentials.
+On a provisioned unit the device's **root secret lives inside the ATECC608B and never leaves
+it**. The firmware derives its master secret from that root via the chip's keyed MAC (MAC
+command, **mode 0x06**), salted with a per-device value in flash. Per-credential (ES256) keys
+are then HMAC-derived from the master secret on demand and exist only transiently in RAM -
+**no long-term private key is written to MCU flash** (derive-and-wrap: one unreadable root backs
+an unlimited number of credentials).
+
+`atecc_ready()` gates this: true **only** when the chip answered **and** is fully provisioned
+(config + data zones locked). Otherwise the firmware falls back to a software master secret with
+**no behaviour change**, so a missing, un-provisioned, or unresponsive chip cannot break FIDO,
+and a mis-provisioned chip never bricks it. An `authenticatorReset` regenerates the per-device
+salt, invalidating all previously derived credentials.
+
+Implementation status - **proven on hardware** (board `207C37AF3631`: both zones locked, KDF
+verified, hardware root active):
+
+| Component | Status |
+|---|---|
+| ATECC I2C driver (`atecc.c`) | wake / Atmel CRC16 / command framing |
+| Key derivation (`atecc_kdf`) | MAC command, **mode 0x06** - hardware-confirmed via `atecc_diag` |
+| Master secret rooted in the chip (`crypto.c`) | `crypto_load_master_secret` -> `atecc_kdf` when `atecc_ready()` |
+| Per-credential keys | HMAC-derived from the master secret; **never stored** |
+| Provisioning (`atecc_provision`) | fail-safe: writes **and verifies** the slot config BEFORE the two irreversible zone locks |
+| CTAPHID triggers | `0x63` self-test, `0x64` provision (button-gated), `0x65` diagnostics |
+| Tooling | `atecc_selftest.py`, `atecc_provision.py`, `atecc_diag.py` |
+| Safe fallback | `atecc_ready()` false until provisioned+locked -> software root, no behaviour change |
+
+The provisioning/diagnostic commands (`0x64`/`0x65`) are compiled **only** with `PROVISION=1`
+and are never present in shipping firmware. Per-unit provisioning is run during production
+(orchestrated by the flashing station).
 
 ## Build (reference)
 

@@ -19,6 +19,13 @@ Results (self-test, all zero failures):
 
 The last full run was verified on hardware.
 
+> **Ed25519 status:** these conformance results are for the ES256 (`-7`) build. EdDSA/**Ed25519
+> (`-8`) was added afterwards** and is now **functionally validated on hardware** - `ed25519-sk`
+> SSH key generation and authentication work locally and against Cloudflare, exercising
+> makeCredential (`-8`), the OKP COSE key, and Ed25519 signing/verification. A formal
+> **conformance-suite re-run and a metadata update** (to extend this self-test PASS and the
+> algorithm list to `-8`) are still outstanding. See `ED25519_PLAN.md`.
+
 ## What the tools check
 
 1. **CTAP2 authenticator conformance** - the device is tested against the CTAP spec up to the

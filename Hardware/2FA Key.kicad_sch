@@ -7,7 +7,7 @@
 	(title_block
 		(title "2FAK")
 		(date "2026-09-22")
-		(rev "V1C")
+		(rev "V1CR1")
 		(company "muru.global")
 		(comment 1 "Design by Papathought")
 	)
@@ -8187,7 +8187,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "Conn_ARM_SWD_TagConnect_TC2030-NL"
+		(property "Value" "SOIC-8 Test Clamp"
 			(at 240.03 100.3299 0)
 			(show_name no)
 			(do_not_autoplace no)

@@ -26,7 +26,12 @@ FIDO2 firmware, which derives from SoloKeys Solo 1.
   (dynamic), `pinUvAuthToken = true`. Emitted in CTAP2 canonical key order.
 - **pinUvAuthProtocols:** `[1, 2]`.
 - **transports:** `["usb"]`.
-- **algorithms:** ES256 (`-7`).
+- **algorithms:** ES256 (`-7`) and EdDSA (`-8`, Ed25519), advertised in that preference order.
+  > Ed25519 (TweetNaCl) is **validated on hardware**: `ed25519-sk` key generation and
+  > authentication were tested working locally and against Cloudflare, which exercises the whole
+  > path (getInfo `-8`, makeCredential negotiation, OKP COSE key, Ed25519 signing + verification).
+  > A formal FIDO **conformance re-run** (to extend the self-test PASS and metadata to `-8`) is
+  > still outstanding. See `ED25519_PLAN.md`.
 - **maxCredentialCountInList**, **maxCredentialIdLength**, **minPINLength** (4),
   **firmwareVersion**.
 
@@ -42,6 +47,12 @@ FIDO2 firmware, which derives from SoloKeys Solo 1.
   cannot be resurrected).
 - Non-discoverable (second-factor) credentials also work, exactly as in the non-resident
   variant.
+- **Key material.** Each credential's private key (**ES256 or Ed25519**) is derived on demand
+  via HMAC from the device master secret plus the credential ID, and exists only transiently in
+  RAM - it is never written to flash. The master secret is rooted in the ATECC608B on
+  provisioned units (see *Secure element* below). The credential's signature algorithm is
+  recorded in the credential ID and is covered by the ID's authentication tag, so it cannot be
+  altered without detection.
 
 ## CTAP commands
 
@@ -86,7 +97,8 @@ as a hardware-backed SSH key with **no firmware changes**:
   because this variant stores discoverable credentials; they can be pulled onto any machine
   with `ssh-keygen -K`. The non-resident variant can only do non-resident `ecdsa-sk` keys.
 - `verify-required` maps to the device PIN (Client PIN) plus the touch (user presence).
-- `ed25519-sk` is **not** supported (no Ed25519/EdDSA in the firmware); use `ecdsa-sk`.
+- Both `ecdsa-sk` (ES256) and `ed25519-sk` (Ed25519) are supported and **tested working
+  (local + Cloudflare)**.
 
 Full sysadmin workflow (resident enroll/export, ProxyJump bastions, Ansible
 `authorized_keys`, SSH-CA integration, PIN tiering, Windows/PuTTY, backup enrollment, and
@@ -101,19 +113,54 @@ the `2FAK-ssh-enroll` helper) is documented in `2FAK Resident - Hardware SSH Key
 
 ## Secure firmware update, production lockdown, and hardware root
 
-These are identical to the non-resident variant:
+These subsystems are shared with the non-resident variant.
 
 - **Signed USB update:** the verifying (production) bootloader accepts only muru-signed
   firmware (ECDSA P-256 over the app region); the dev bootloader accepts unsigned firmware;
-  anti-rollback enforces version-not-older.
-- **Production lockdown:** RDP-2 permanently disables the debug port; signed USB updates still
-  work afterwards; production images are built without `SOLO_HACKER`.
-- **Hardware root of trust:** on units with a provisioned ATECC608B the FIDO master secret is
-  derived inside the secure element, with a transparent software fallback if the chip is
-  absent, unprovisioned, or fails.
+  anti-rollback enforces version-not-older. Hardware-verified end to end.
+- **Production lockdown (RDP-2):** setting readout-protection level 2 **permanently** disables
+  the SWD/debug port (irreversible); signed USB updates still work afterwards; production images
+  are built without `SOLO_HACKER`. On the production line this is the "Close Debug" step: the app
+  sets a persistent lock flag over USB (`CTAPHID_LOCK`), and the firmware programs RDP-2 on the
+  next boot.
 
-(See `2FAK Non-Resident - Firmware Documentation.md` for the detailed description of these
-shared subsystems.)
+### Secure element (ATECC608B) - hardware root of trust
+
+On a provisioned unit the device's **root secret lives inside the ATECC608B and never leaves
+it**. The firmware derives its 64-byte master secret from that root via the chip's keyed MAC,
+salted with a per-device value in flash that is regenerated on `authenticatorReset` (so a reset
+changes every derived key). Per-credential keys (ES256 and Ed25519) are then HMAC-derived from
+the master secret on demand and exist only transiently in RAM - **no long-term private key is
+written to MCU flash**. This is the derive-and-wrap model: a few key slots cannot hold ~50
+passkeys, so one unreadable root plus derivation backs an unlimited number of credentials.
+
+`atecc_ready()` gates the whole path: it returns true **only** when the chip answered **and** is
+fully provisioned (config + data zones locked). On any unit where the chip is absent,
+un-provisioned, or unresponsive, the firmware falls back to a software master secret with **no
+behaviour change** - so the hardware root is dormant until a unit is deliberately provisioned,
+and a mis-provisioned chip can never brick FIDO.
+
+Implementation status - **proven on hardware** (board `207C37AF3631`: both zones locked, KDF
+verified, hardware root active):
+
+| Component | Status |
+|---|---|
+| ATECC I2C driver (`atecc.c`) | wake / Atmel CRC16 / command framing |
+| Key derivation (`atecc_kdf`) | MAC command, **mode 0x06** - hardware-confirmed via `atecc_diag` |
+| Master secret rooted in the chip (`crypto.c`) | `crypto_load_master_secret` -> `atecc_kdf` when `atecc_ready()` |
+| Per-credential keys | HMAC-derived from the master secret; **never stored** |
+| Provisioning (`atecc_provision`) | fail-safe: writes **and verifies** the slot config BEFORE the two irreversible zone locks |
+| CTAPHID triggers | `0x63` self-test, `0x64` provision (button-gated), `0x65` diagnostics |
+| Tooling | `atecc_selftest.py`, `atecc_provision.py`, `atecc_diag.py` |
+| Safe fallback | `atecc_ready()` false until provisioned+locked -> software root, no behaviour change |
+
+Per-unit provisioning is run during production and is orchestrated by the flashing station
+(flash the PROVISION build -> `0x64` with a button touch -> flash the shipping build). The
+provisioning/diagnostic commands (`0x64`/`0x65`) are compiled **only** with `PROVISION=1` and are
+never present in shipping firmware. Full procedure: `Firmware/Resident CTAP2.3/PROVISIONING.md`.
+
+(See `2FAK Non-Resident - Firmware Documentation.md` for the shared signed-update and lockdown
+subsystems.)
 
 ## Build (reference)
 

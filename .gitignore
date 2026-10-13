@@ -1,11 +1,3 @@
-# ============================================================================
-# 2FAK monorepo .gitignore
-# This is a PUBLIC repository. Nothing secret may ever be committed.
-# The SECRETS section below is the single source of truth for what stays private.
-# After changes, verify with:  git status --short | grep -iE 'key|priv|secret|\.pem'
-# ============================================================================
-
-# ---- Build artifacts (regenerable) ----
 *.o
 *.d
 *.obj
@@ -31,60 +23,35 @@
 **/prebuilt/*.hex
 **/prebuilt/*.bin
 **/prebuilt/*.elf
-# generated linker scripts (templates *.ld.in are kept)
 **/linker/*.ld
 !**/linker/*.ld.in
-
-# ---- OS / editor cruft ----
 .DS_Store
 Thumbs.db
 *.swp
 *~
 .vscode/
 .idea/
+.history/
+**/.history/
 __pycache__/
 *.pyc
-# KiCad per-user UI state and Blender autosave backups (not source)
 *.kicad_prl
 *.blend1
-
-# ---- Internal engineering notes (kept out of the public repo) ----
 Hardware/2FA_Key_HANDOFF.md
-
-# ============================================================================
-# SECRETS - never publish. These stay on the build/flashing machines only.
-# Public CERTIFICATES (ca_cert.*, att_cert.*, root_b64.txt, aaguid.*) are NOT
-# ignored on purpose - they are meant to be public.
-# ============================================================================
 secrets/
 production-keys/
-
-# muru attestation PRIVATE keys
 **/keys/2fak/att_key.pem
 **/keys/2fak/ca_key.pem
 **/keys/2fak/priv.bin
 **/keys/2fak/priv.hex
-
-# any private key material, in any firmware's keys/ tree
 **/keys/**/*_key.pem
 **/keys/**/*_key.hex
 **/keys/**/*_key.txt
 **/keys/**/root_key.pem
 **/keys/bootloader-*.pem
-
-# generic private-key catch-alls
 *.key
 *_private.pem
 id_rsa*
-
-# Flashing-station runtime output: production records (device IDs / MCU UIDs) and the
-# generated QR/barcode images. Keep these as your own records; do not publish them.
 Tools/flashing-station/logs/
 Tools/flashing-station/codes/
-
-# Documentation kept private (product/marketing/internal); not published to the repo.
 Docs/
-
-# NOTE: provisioned firmware images embed the attestation private key, so all
-# *.hex are ignored above and must be distributed via signed GitHub Releases,
-# never committed to the tree.

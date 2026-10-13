@@ -313,6 +313,70 @@ void crypto_ecc256_compute_public_key(uint8_t * privkey, uint8_t * pubkey)
 }
 
 
+// ---------------------------------------------------------------------------- Ed25519 (EdDSA)
+// TweetNaCl Ed25519, rooted in the (ATECC-derived) master secret exactly like the P-256 keys:
+// per-credential seed = generate_private_key(...), then keygen + deterministic sign in software.
+// Not compiled into the bootloader (which neither needs it nor links tweetnacl.c).
+#ifndef IS_BOOTLOADER
+extern int crypto_sign_ed25519_tweet_keypair(uint8_t *pk, uint8_t *sk);
+extern int crypto_sign_ed25519_tweet(uint8_t *sm, unsigned long long *smlen,
+                                     const uint8_t *m, unsigned long long n, const uint8_t *sk);
+
+// TweetNaCl keygen pulls its 32-byte seed from randombytes(); Ed25519 signing is deterministic
+// and never calls it. We inject our derived seed. CTAP operations are sequential, so the static
+// pointer is safe. This is the firmware's only randombytes() definition.
+static const uint8_t * _ed25519_seed = NULL;
+
+void randombytes(uint8_t * out, unsigned long long cnt)
+{
+    if (_ed25519_seed && cnt == 32)
+    {
+        memmove(out, _ed25519_seed, 32);
+        return;
+    }
+    ctap_generate_rng(out, (size_t)cnt);   // fallback; not expected on the Ed25519 path
+}
+
+static void _ed25519_keypair_from_seed(const uint8_t seed[32], uint8_t pk[32], uint8_t sk[64])
+{
+    _ed25519_seed = seed;
+    crypto_sign_ed25519_tweet_keypair(pk, sk);   // randombytes() returns `seed`
+    _ed25519_seed = NULL;
+}
+
+void crypto_ed25519_derive_pubkey(uint8_t * data, int len, uint8_t pubkey[32])
+{
+    uint8_t seed[32], pk[32], sk[64];
+    generate_private_key(data, len, NULL, 0, seed);   // 32 pseudorandom bytes == Ed25519 seed
+    _ed25519_keypair_from_seed(seed, pk, sk);
+    memmove(pubkey, pk, 32);
+    memset(seed, 0, sizeof(seed));
+    memset(sk, 0, sizeof(sk));
+}
+
+int crypto_ed25519_sign(uint8_t * data, int len, const uint8_t * msg, int msglen, uint8_t sig[64])
+{
+    if (msglen < 0 || msglen > CRYPTO_ED25519_SIGN_MSG_MAX)
+        return 0;
+
+    uint8_t seed[32], pk[32], sk[64];
+    // crypto_sign writes sm = signature(64) || msg; bounded static buffer (ops are sequential).
+    static uint8_t sm[64 + CRYPTO_ED25519_SIGN_MSG_MAX];
+    unsigned long long smlen = 0;
+
+    generate_private_key(data, len, NULL, 0, seed);
+    _ed25519_keypair_from_seed(seed, pk, sk);
+    crypto_sign_ed25519_tweet(sm, &smlen, msg, (unsigned long long)msglen, sk);
+    memmove(sig, sm, 64);
+
+    memset(seed, 0, sizeof(seed));
+    memset(sk, 0, sizeof(sk));
+    memset(sm, 0, sizeof(sm));
+    return 1;
+}
+#endif // IS_BOOTLOADER
+
+
 void crypto_load_external_key(uint8_t * key, int len)
 {
     _signing_key = key;

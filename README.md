@@ -2,7 +2,7 @@
 
 # 2FAK
 
-**Open-source USB-A security key — FIDO2 / WebAuthn, passkeys, and an optional on-board secure element.**
+**Open-source USB hardware — a FIDO2 / WebAuthn security key, and a programmable USB dongle.**
 
 _by muru.global_
 
@@ -20,47 +20,108 @@ _by muru.global_
 
 ---
 
-2FAK is a small, affordable, fully open-source hardware security key. Plug it into any USB-A
-port, tap the button, and you are signed in — the private keys are generated and kept on the
-device and never leave it, so a fake login page or a stolen laptop gets nothing. It is built
-on an STMicroelectronics **STM32L442KCU6** with an optional **ATECC608B** secure element.
+2FAK is a small, affordable, fully open-source USB-A board that comes in two flavours:
+
+- **2FAK (V1C)** — a finished **FIDO2 / WebAuthn security key**, running the **Resident
+  (passkey) firmware**. It is the product most people want: phishing-resistant sign-in and
+  passkeys, with a secure element and a locked-down debug port.
+- **Programmable 2FAK (V1A / V1B)** — the same USB-A board as an **open, reflashable dev
+  platform**. It ships with ready-made **HID Injection** and **Mouse Jiggler** firmware and can
+  be reprogrammed into whatever you like.
 
 - **USB VID/PID:** `0x1209 / 0x2FA2` (0x1209 is the pid.codes open-source Vendor ID; PID 0x2FA2 is registered to us)
 - **AAGUID:** `c2aa81f8-352d-56e2-c689-2bfdb5a52ccc`
 - **Firmware lineage:** fork of Nitrokey FIDO2 / SoloKeys solo1 (see `NOTICE`)
 
-## Highlights
+### 2FAK (V1C) — the security key
 
-- 🔐 **Phishing-resistant** FIDO2 / WebAuthn — your login is bound to the real site.
-- 🗝️ **Passkeys** — go fully passwordless on the Resident firmware (up to ~50 discoverable credentials).
-- 🧩 **The board is the plug** — USB-A male blade, no cable, nothing to wear out.
-- 🛡️ **Optional secure element** (ATECC608B) holds a device root that can't be read out.
-- ✍️ **Signed USB firmware updates** + irreversible **RDP-2** debug lockdown on production units.
-- 💻 **Doubles as a hardware SSH key** — see [Hardware SSH Keys](#hardware-ssh-keys).
-- 📖 **Open source** (Apache-2.0) and **open hardware** — inspect everything.
+The flagship security-key edition. It **ships with the ATECC608B secure element populated by
+default**, and **all SWD / debug pins are closed** (RDP-2 read-out protection), so firmware and
+secrets cannot be extracted or the chip reflashed over a programmer — updates are delivered as
+signed images over USB. Runs the Resident (passkey) firmware: FIDO2 / WebAuthn, passkeys, and
+hardware SSH keys.
+
+2FAK (V1C) **comes with a 3D-printed case**. The 3D-printable case files are in
+[`/3D Printable`](3D%20Printable).
+
+### Programmable 2FAK (V1A / V1B)
+
+The same STM32L442 USB-A board with its **SWD pins left open for programming and debugging** — a
+blank canvas for makers. It ships with pre-made **HID Injection** and **Mouse Jiggler** firmware
+and can be reflashed over an ST-Link. By default it is sold as **bare-bones hardware** (no case);
+a **3D-printed case can be purchased separately**, and the 3D-printable enclosure and case files
+are in [`/Programmable/3D Printable`](Programmable/3D%20Printable).
 
 <div align="center">
-<img src="Hardware/Photos/2FAK-V1A.jpg" alt="2FAK V1A assembled board" width="440">
-<br><sub>Assembled 2FAK (V1A).</sub>
+<img src="Renders/2FAKV1A-Render.png" alt="Programmable 2FAK (V1A) render" width="440">
+<br><sub>Programmable 2FAK (V1A).</sub>
 </div>
 
-## Firmware editions
+## Getting Started — 2FAK (V1C)
 
-One board, two shipping firmware editions built from a single codebase:
+### As a security key (websites & apps)
 
-| | **2FAK Secure** (Non-Resident) | **2FAK Passkey** (Resident) |
-|---|---|---|
-| Model | Second factor (server-side credentials) | Passkeys (discoverable credentials) |
-| Discoverable credentials (rk) | No | Yes |
-| Credential Management | No | Yes |
-| ClientPIN protocols | 1 | 1 and 2 |
-| Extensions | hmac-secret, credProtect | hmac-secret, credProtect, minPinLength |
-| Conformance (self-test) | CTAP2.0, CTAP2.1 | CTAP2.0, CTAP2.1, CTAP2.3 |
-| Hardware SSH keys | `ecdsa-sk` (non-resident) | `ecdsa-sk` incl. **resident/portable** |
+1. Plug the 2FAK into a USB-A port.
+2. On a site that supports security keys / passkeys, open **Settings → Security** and choose
+   **add a security key** or **add a passkey**.
+3. When prompted, **touch the button** on the 2FAK (and set/enter a device PIN if the site asks
+   for user verification).
+4. Next time you sign in, select your security key / passkey and **touch to confirm**.
 
-Conformance is validated against the **FIDO Alliance Conformance Test Tools (self-test)** and
-recorded per firmware under `Firmware/.../tests/`. Formal FIDO Certification is a separate
-submission and is **not** claimed.
+Works today with Google, Microsoft, Cloudflare, Dropbox, Proton, Fastmail, Discord and more —
+see [Platform compatibility](#platform-compatibility). Tip: register **two** keys (a primary and
+a backup) so a lost key never locks you out.
+
+### As a hardware SSH key
+
+The Resident firmware doubles as a hardware-backed SSH key — the private key stays on the 2FAK
+and every connection needs a touch. Both `ecdsa-sk` (ES256) and `ed25519-sk` (Ed25519) are
+supported and tested (locally and against Cloudflare):
+
+```bash
+ssh-keygen -t ed25519-sk -O resident -O application=ssh:prod -f ~/.ssh/id_ed25519_sk_prod
+# or -t ecdsa-sk for the ES256 key type
+```
+
+Add the resulting `.pub` to your server's `~/.ssh/authorized_keys` (or your Git host), then
+`ssh` as usual and touch the key. Because the key is *resident*, you can carry it on the token
+and pull it onto any machine with `ssh-keygen -K`. Add `-O verify-required` to also require the
+device PIN. Requires OpenSSH 8.2+. Full sysadmin workflow (portable keys, ProxyJump bastions,
+Ansible, SSH-CA, PIN tiering, Windows, backups) is in
+[`Guides/2FAK Resident - Hardware SSH Key Guide.md`](Guides/2FAK%20Resident%20-%20Hardware%20SSH%20Key%20Guide.md).
+
+## Getting Started — Programmable 2FAK
+
+The programmable board exposes the **SWD** pads for flashing and debugging with an **ST-Link**.
+You connect the ST-Link to the board's SWD pads using **pogo pins** or **male-to-male
+breadboard / jumper wires**.
+
+1. **Wire the ST-Link to the board** (see the [pin summary](#pin-summary)):
+
+   | ST-Link | 2FAK pad |
+   |---------|----------|
+   | SWDIO   | PA13     |
+   | SWCLK   | PA14     |
+   | GND     | GND      |
+   | 3.3V    | 3V3      |
+
+   Hold the pogo pins against the pads, or solder short male-to-male wires to them.
+
+2. **Build or grab a firmware.** Ready-made HID Injection and Mouse Jiggler images live under
+   [`/Programmable/Firmware`](Programmable/Firmware) (each has its own `build.sh` and a
+   `prebuilt/` image).
+
+3. **Flash it** with STM32CubeProgrammer (ST-Link):
+
+   ```bash
+   STM32_Programmer_CLI -c port=SWD -d "Programmable/Firmware/Mouse Jiggler/prebuilt/<image>.hex" -rst
+   ```
+
+   (or use `st-flash` / OpenOCD if you prefer). Unplug the ST-Link and plug the 2FAK into a USB
+   port to run the firmware.
+
+> Because the programmable board has open SWD and no secure element, it is intended for maker /
+> DIY use, not as a tamper-resistant security key. For a security key, use 2FAK (V1C).
 
 ## Hardware
 
@@ -78,7 +139,7 @@ submission and is **not** claimed.
 | | |
 |---|---|
 | **MCU** | STM32L442KCU6 — Arm Cortex-M4F, 80 MHz, UFQFPN-32; 256 KB flash / 64 KB SRAM |
-| **Secure element** | Microchip ATECC608B on I2C1 (populated variant) |
+| **Secure element** | Microchip ATECC608B |
 | **Interface** | USB 2.0 Full-Speed, USB-A male blade (no cable) |
 | **Protocols** | FIDO2 / WebAuthn, CTAP2.0 / 2.1 / 2.3 |
 | **USB ID** | 0x1209 / 0x2FA2 (pid.codes) |
@@ -99,7 +160,7 @@ submission and is **not** claimed.
 - **Clocking:** crystal-less USB using the internal HSI48 oscillator with the Clock Recovery
   System (CRS); no external crystal required.
 
-#### Secure element (populated variant)
+#### Secure element
 
 - **Part:** Microchip ATECC608B, on the I2C1 bus.
 - Confirmed on hardware at 7-bit I2C address 0x60, Info revision word 0x00006003 (identifies
@@ -115,7 +176,7 @@ submission and is **not** claimed.
 - One **tactile push button** (user presence) and one **status LED**.
 - **USB bus-powered** from 5 V, regulated on-board to 3.3 V by an LDO. ~30 mA typical, no
   battery.
-- **SWD** debug/programming (SWDIO / SWCLK); BOOT0 for boot-mode selection.
+- **SWD** debug/programming (SWDIO / SWCLK).
 
 *Notice: SWD is closed in units sold as 2FAK Authentication Key.*
 
@@ -150,9 +211,13 @@ Build switches (environment variables) are documented in `build.sh`. Artifacts l
 
 ## Security
 
-Per-credential keys are generated and held in the MCU; the optional device root can be held
-in the ATECC608B secure element. Production units enable flash read-out protection (RDP) and
-a verifying bootloader so firmware cannot be extracted or replaced off a locked device.
+On provisioned units the device **root secret lives in the ATECC608B secure element and never
+leaves it**; per-credential keys (ES256, and Ed25519 on the Resident build) are **derived on
+demand from that root and are never stored** in MCU flash (derive-and-wrap). The secure-element
+path is proven on hardware and fails safe — an absent or un-provisioned chip falls back to a
+software root with no behaviour change. Production units also enable **flash read-out protection
+level 2 (RDP-2)**, permanently disabling the debug port, plus a **verifying bootloader** so
+firmware cannot be extracted or replaced off a locked device (signed USB updates still work).
 
 > **This is a public repository. It never contains private keys.** The following are
 > git-ignored and must exist only on the build/flashing machines:
@@ -163,25 +228,6 @@ a verifying bootloader so firmware cannot be extracted or replaced off a locked 
 Public certificates (root CA + leaf), the AAGUID, and the metadata statements are published
 on purpose. Release firmware images are distributed via signed GitHub Releases, not committed
 to the tree.
-
-## Hardware SSH Keys
-
-The **2FAK Passkey (Resident)** firmware doubles as a hardware-backed SSH key — no extra
-firmware needed. SSH's `ecdsa-sk` key type rides on the standard FIDO2 flow, so the private
-key stays on the 2FAK and every connection requires a physical touch.
-
-```bash
-ssh-keygen -t ecdsa-sk -O resident -O application=ssh:prod -f ~/.ssh/id_ecdsa_sk_prod
-```
-
-Because the key is *resident*, you can carry it on the token and pull it onto any machine
-with `ssh-keygen -K` — handy for admins working across bastions and multiple workstations.
-Add `-O verify-required` to also require the device PIN on privileged hosts. Requires OpenSSH
-8.2+; uses ES256 (`ecdsa-sk`), not `ed25519-sk`.
-
-Full sysadmin workflow — portable keys, ProxyJump bastions, Ansible `authorized_keys`, SSH-CA
-integration, PIN tiering, Windows/PuTTY, backup enrollment, and the `2FAK-ssh-enroll` helper —
-is in [`2FA Docs/2FAK Resident - Hardware SSH Key Guide.md`](2FA%20Docs/2FAK%20Resident%20-%20Hardware%20SSH%20Key%20Guide.md).
 
 ## Platform compatibility
 
@@ -222,10 +268,32 @@ Community/self-tested results. "not tested" simply means we haven't checked it y
 
 ## Other firmware options
 
-The programmable (no-secure-element) board can also run:
+The programmable (no-secure-element) board can also run other roles. Ready-made firmware
+templates — **HID Injection** and **Mouse Jiggler** — and project sources are in
+[`/Programmable/Firmware`](Programmable/Firmware); each template has its own `build.sh` and a
+`prebuilt/` image, and can be reflashed over an ST-Link (see
+[Getting Started — Programmable 2FAK](#getting-started--programmable-2fak)).
 
-- Mouse Jiggler firmware *(coming soon)*
-- HID Injection firmware *(coming soon)*
+## Compliance
+
+2FAK is built to the **FIDO Alliance Conformance** requirements (CTAP2.0 / 2.1 / 2.3,
+self-test) and is **RoHS compliant**. The conformance readiness write-ups, the RoHS declaration,
+and the supporting component test data are in [`/Compliance`](Compliance) (`Compliance/FIDO` and
+`Compliance/RoHS`).
+
+## Resources
+
+- **Resident (passkey) firmware:** [`Firmware/Resident CTAP2.3`](Firmware/Resident%20CTAP2.3)
+- **Printables:** https://
+- **MakerWorld:** https://
+- **Cults3D:** https://
+- **Product page:** https://
+
+## Credits
+
+Created by **@papathought** (muru.global).
+
+- Instagram: https://instagram.com/papathought
 
 ## License
 
