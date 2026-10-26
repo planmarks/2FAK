@@ -1,0 +1,18 @@
+Base material: FR-4 TG135
+Dimensions: 35.2mm x 18.5mm
+PCB thickness: 2mm (or 1.6mm)
+PCB Color: Black
+Silkscreen color: White
+Surface finish: Lead free HASL
+Outer copper weight: 1oz
+Via covering: Tented
+Via planting method: Conductive adhesive
+Min via hole size/diameter: 0.3mm
+Board outer tolerance: +-0.2mm
+
+Gold fingers: No
+Castellated holes: No
+Edge plating: No
+Blind slots: No
+UL Marking: No
+Humidity Indicator Card: Optional

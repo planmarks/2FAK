@@ -546,7 +546,7 @@
     "last_paths": {
       "idf": "",
       "netlist": "",
-      "plot": "V1C Gerber/",
+      "plot": "V1C/",
       "specctra_dsn": "",
       "step": "3D/2FAK-V1C-PCB-Comp.glb",
       "vrml": ""
@@ -671,7 +671,7 @@
         "uuid": "0ed8a921-0161-4ec3-8c4b-4ea0900d0622"
       }
     ],
-    "used_designators": "U1-5,J1-4,R1-5,SW1,D1,#PWR1-29,C1-8,FB1",
+    "used_designators": "U1-5,R1-5,J1-4,SW1,#PWR1-29,D1,C1-8,FB1",
     "variants": []
   },
   "sheets": [

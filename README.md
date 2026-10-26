@@ -284,16 +284,18 @@ and the supporting component test data are in [`/Compliance`](Compliance) (`Comp
 ## Resources
 
 - **Resident (passkey) firmware:** [`Firmware/Resident CTAP2.3`](Firmware/Resident%20CTAP2.3)
-- **Printables:** https://
-- **MakerWorld:** https://
-- **Cults3D:** https://
-- **Product page:** https://
+- **Printables:** https://www.printables.com/model/1890749-2fak-v1c-enclosure
+- **MakerWorld:** https://makerworld.com/en/models/3494613-2fak-v1c-case#profileId-3991427
+- **2FA Key Product page:** https://shop.muru.global/2fak
+- **Programmable Product page:** https://shop.muru.global/programmable-usb
 
 ## Credits
 
 Created by **@papathought** (muru.global).
 
 - Instagram: https://instagram.com/papathought
+- Website: https://muru.global/
+- Shop: https://shop.muru.global/
 
 ## License
 
